@@ -4,7 +4,7 @@ import argparse
 import pandas as pd
 
 
-def main():
+def main(): # run with parameters IMDB-Movie-Data.csv and it will read it
 	parser = argparse.ArgumentParser("movies")
 	parser.add_argument('csv_file')
 	args = parser.parse_args()
