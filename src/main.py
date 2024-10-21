@@ -24,10 +24,8 @@ def main(): # run with parameters IMDB-Movie-Data.csv and it will read it
 			genstr = ""
 			for genre in genres:
 				genstr += genre + " "
-			director = row[4]
-			year = row[6]
 			runtimemins = row[7]
-			rating = row[8]
+
 			sql_statement = ("INSERT INTO movie (movieid, title, runtime) VALUES (" + str(movieid) + ", " + genstr + ", " + runtimemins)
 			movieid = movieid + 1
 
