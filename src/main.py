@@ -7,10 +7,16 @@ Command line interface to control the Movies database.
 Author: Vladislav Usatii (vau3677@g.rit.edu)
 
 """
+import sys, os, random
 import argparse
 from datetime import datetime
+from dotenv import load_dotenv
 
-USERS, COLLECTIONS = {}, {} # for testing
+def GET():
+	pass
+
+def POST():
+	pass
 
 def create_account(email, password, username):
 	censored = '*' * len(password)
@@ -33,6 +39,32 @@ def main():
 	parser.add_argument('--delete-collection', help="delete collection", nargs=2, metavar=('EMAIL', 'COLLECTION'))
 	parser.add_argument('--follow', help="follow user", nargs=2, metavar=('EMAIL', 'USER'))
 	parser.add_argument('--unfollow', help="unfollow user", nargs=2, metavar=('EMAIL', 'USER'))
+
+	# init db
+	try:
+		load_dotenv()
+		username = os.getenv("DB_USERNAME")
+		password = os.getenv("DB_PASSWORD")
+		dbName = "p320_11"
+		valuesArr = []
+
+		with SSHTunnelForwarder(('starbug.cs.rit.edu', 22),
+			ssh_username=username, ssh_password=password,
+			remote_bind_address=('127.0.0.1', 5432)) as server:
+			server.start()
+			print("SSH tunnel established")
+			params = {
+				'database': dbName,
+				'user': username,
+				'password': password,
+				'host': 'localhost',
+				'port': server.local_bind_port
+			}
+			conn = psycopg2.connect(**params)
+			curs = conn.cursor()
+			print("db connection established")
+
+	# parse args
 	args = parser.parse_args()
 
 	if args.create_account: create_account(args.create_account[0], args.create_account[1], args.create_account[2])
