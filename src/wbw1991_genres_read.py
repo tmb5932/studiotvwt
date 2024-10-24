@@ -3,8 +3,13 @@ import argparse
 import ast
 import csv
 from _csv import reader
+from sshtunnel import SSHTunnelForwarder
+from dotenv import load_dotenv
+import psycopg2
+
 
 GENRESLIST = []
+
 
 # Insert genres function IMDB MOVIE DATA CSV
 # inserts a bunch of genres and genreid read and parsed from the csv into datagrips genre table.
@@ -13,7 +18,7 @@ def readgenres(csvfile):
 
     # list of unique genres and the start of the genreid
     global GENRESLIST
-    genreid= len(GENRESLIST) + 1
+
 
     # open times csv and read according to row genres is in
     with open(csvfile) as c:
@@ -35,9 +40,8 @@ def readgenres(csvfile):
                 newgenre=genre.strip()
                 if genre not in  GENRESLIST:
                     GENRESLIST.append(genre)
-                    sql_statement= "INSERT INTO genre (genreid, name) VALUES ({}, '{}')".format(genreid, newgenre)
-                    genreid+=1
-                    print(sql_statement)
+
+
 
 
 
@@ -47,7 +51,6 @@ def readgenres(csvfile):
 def readgenres2(csvfile):
 
     global GENRESLIST
-    genreid = len(GENRESLIST) + 1
 
 
     # Open the CSV file and read according to row genres is in
@@ -83,19 +86,58 @@ def readgenres2(csvfile):
                             if genrename == 'Carousel Productions':
                                 return
 
-
                             GENRESLIST.append(genrename)
-                            sql_statement = "INSERT INTO genre (genreid, name) VALUES ({}, '{}')".format(genreid, genrename)
-                            genreid += 1
-                            print(sql_statement)
 
 
-# Example main function calling the new function
-def main():
-    csvfile= "IMDB-Movie-Data.csv"
-    csvfile2= "movies_metadata.csv"
-    readgenres(csvfile)
-    readgenres2(csvfile2)
+# make an insert query with genreid and the name of the genre in genrelist
+#calls executemany to execute all at the same time.
+def insert_genres(curs, valuesArray):
+    insert_query = """
+    INSERT INTO genre (genreid, name) VALUES (%s, %s)
+    """
+    curs.executemany(insert_query, valuesArray)
+
+
+# connect and then set a genre id to each in genreslist and then call insert genres
+def ssh_insert_genres():
+    try:
+        load_dotenv()
+        username = os.getenv("DB_USER")
+        password = os.getenv("DB_PASSWORD")
+        dbName = "p320_11"
+        valuesArray = []
+        with SSHTunnelForwarder(('starbug.cs.rit.edu', 22),
+                                ssh_username=username,
+                                ssh_password=password,
+                                remote_bind_address=('127.0.0.1', 5432)) as server:
+            server.start()
+            print("SSH tunnel established")
+
+            params = {
+                'database': dbName,
+                'user': username,
+                'password': password,
+                'host': 'localhost',
+                'port': server.local_bind_port
+            }
+            conn = psycopg2.connect(**params)
+            curs = conn.cursor()
+            print("Database connection established")
+
+            csvfile = "IMDB-Movie-Data.csv"
+            csvfile2 = "movies_metadata.csv"
+            readgenres(csvfile)
+            readgenres2(csvfile2)
+
+            valuesArray = [(i + 1, genre) for i, genre in enumerate(GENRESLIST)]
+            insert_genres(curs, valuesArray)
+
+            conn.commit()
+            print("All genres inserted successfully!")
+            conn.close()
+    except:
+        print("Connection failed")
+
 
 if __name__ == "__main__":
- main()
+    ssh_insert_genres()
