@@ -17,7 +17,7 @@ def insert_user(curs, valuesArray):
 def generate_and_insert_users(num_users):
     try:
         load_dotenv()
-        username = os.getenv("DB_USER")
+        username = os.getenv("DB_USERNAME")
         password = os.getenv("DB_PASSWORD")
         dbName = "p320_11"
         valuesArray = []
