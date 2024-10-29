@@ -1,5 +1,6 @@
 import os
 import random
+import time
 
 import psycopg2
 from faker import Faker
@@ -14,7 +15,7 @@ def insert_user(curs, valuesArray):
     """
     curs.executemany(insert_query, valuesArray)
 
-def generate_and_insert_users(num_users):
+def generate_and_insert_users(already_inserted, num_users):
     try:
         load_dotenv()
         username = os.getenv("DB_USERNAME")
@@ -44,16 +45,16 @@ def generate_and_insert_users(num_users):
 
             fake = Faker()
 
-            for userId in range(0, num_users):
+            for userId in range(already_inserted, num_users + already_inserted):
                 firstName = fake.first_name()
                 lastName = fake.last_name()
                 base_username = f"{firstName[0]}{lastName}"
 
                 # possibly add numbers after username to make it a little more real
-                add_number = random.choice([0, 1, 2])
+                add_number = random.choice([0, 1, 2, 3])
                 if add_number == 1:
                     username = f"{base_username}{random.randint(0, 9)}"
-                elif add_number == 2:
+                elif add_number > 1:
                     username = f"{base_username}{random.randint(10, 99)}"
                 else:
                     username = base_username
@@ -66,8 +67,11 @@ def generate_and_insert_users(num_users):
                 print((userId, username, password, email, firstName, lastName))
                 # Commit every 50 users to avoid large transactions
                 if userId % 50 == 0:
-                    # conn.commit()
+                    insert_user(curs, valuesArray)
+                    conn.commit()
+                    valuesArray.clear()
                     print(f"Inserted {userId} users successfully.")
+                    time.sleep(30)
 
             insert_user(curs, valuesArray)
             # Final commit for any remaining users
@@ -77,10 +81,18 @@ def generate_and_insert_users(num_users):
             # END OF TRAVIS WORK
 
             conn.close()
-    except:
-        print("Connection failed")
-
+    except Exception as e:
+        print(f"Error: {e}")
+        conn.close()
+    finally:
+        if curs:
+            curs.close()
+        if conn:
+            conn.close()
+        print("Resources cleaned up successfully.")
 
 if __name__ == "__main__":
-    n = 6
-    generate_and_insert_users(n)
+    amount_to_add = 100
+    amount_already_in_database = 500
+
+    generate_and_insert_users(amount_already_in_database, amount_to_add)
