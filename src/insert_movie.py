@@ -19,6 +19,7 @@ def main(): # run with parameters IMDB-Movie-Data.csv and it will read it
 		# skips first row / inits movieid
 		header = True
 		movieid = 1
+		print("INSERT INTO movie (movieid, title, runtime) VALUES " , end="")
 		for row in csv_reader:
 			if header:
 				header= False
@@ -33,9 +34,10 @@ def main(): # run with parameters IMDB-Movie-Data.csv and it will read it
 				genstr += genre + " "
 			runtimemins = row[7]
 
-			sql_statement = ("INSERT INTO movie (movieid, title, runtime) VALUES (" + str(movieid) + ", " + title + ", " + runtimemins + ")")
+			# sql_statement = ("INSERT INTO movie (movieid, title, runtime) VALUES (" + str(movieid) + ", " + title + ", " + runtimemins + ")")
 			movieid = movieid + 1
-			print(sql_statement)
+			# print(sql_statement)
+			print("(" + str(movieid) + ", '" + title + "', " + runtimemins + "), ", end="")
 
 
 
