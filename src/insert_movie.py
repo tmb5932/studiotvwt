@@ -42,7 +42,7 @@ def main(): # run with parameters IMDB-Movie-Data.csv and it will read it
 					mpaa = "G"
 				sql_statement = ("INSERT INTO movie (movieid, title, runtime, mpaa) VALUES (" + str(movieid) + ", " + title + ", " + runtimemins + ", " + mpaa + ")")
 				movieid = movieid + 1
-				print(sql_statement)
+
 
 
 
