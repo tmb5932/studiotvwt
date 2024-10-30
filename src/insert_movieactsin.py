@@ -42,12 +42,16 @@ def generate_movies():
             print("Database connection established")
 
             # START OF WORK
-            # im really sorry that this effectively brute forces through overlapping but i didn't want to figure out solution
-            # suprisingly even with 1000 actors to choose from still got 5 overlap errors
+            # im really sorry that this effectively brute forces with overlaps but i didn't want to figure out better solution
+            # surprisingly even with 1000 actors to choose from with a 2nd chance still got 2 overlap errors
             for movieid in range(0, 1000):
 
                 for num in range(0, random.randint(3, 7)):
-                    valuesArray.append((movieid, random.randint(0, 1000)))
+                    rand = random.randint(0, 1000)
+                    for value in valuesArray:
+                        if value == (movieid, rand):
+                            rand = random.randint(0, 1000)
+                    valuesArray.append((movieid, rand))
 
 
                 # Commit every 40 movies to avoid large transactions
