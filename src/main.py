@@ -12,21 +12,24 @@ import argparse
 from datetime import datetime
 from dotenv import load_dotenv
 from sshtunnel import SSHTunnelForwarder
+import psycopg2
+from datetime import datetime
 
-conn, curs = None, None # global db instance
+from utils import *
+
+conn, curs = None, None  # global db instance
 
 # connect to server once
 def db_connect():
 	global conn, curs
 	try:
 		username = os.getenv("DB_USERNAME")
-		password = os.getenv("DB_PASSWORD")
+		password, censored = os.getenv("DB_PASSWORD"), '*' * len(os.getenv("DB_PASSWORD"))
 		dbName = "p320_11"
-		valuesArr = []
+		addr, port = '127.0.0.1', 5432
+		print(f"Login:\nUsername: {username}\tPassword: {censored}\nDB Name: {dbName}\tAddress: {addr}:{port}")
 
-		with SSHTunnelForwarder(('starbug.cs.rit.edu', 22),
-			ssh_username=username, ssh_password=password,
-			remote_bind_address=('127.0.0.1', 5432)) as server:
+		with SSHTunnelForwarder(('starbug.cs.rit.edu', 22), ssh_username=username, ssh_password=password, remote_bind_address=(addr, port)) as server:
 			server.start()
 			print("SSH tunnel established")
 			params = {
@@ -40,6 +43,7 @@ def db_connect():
 			curs = conn.cursor()
 			print("db connection established")
 	except Exception as e:
+		print(e)
 		print("connection failed")
 
 # SELECT * [from *]
@@ -51,33 +55,50 @@ def GET(table, col='*', criteria=None):
 		results = curs.fetchall()
 		for row in results: print(row)
 	except Exception as e:
-		print("GET failed: {e}")
+		print(f"GET failed: {e}")
 
 # INSERT INTO 
 def POST(table, data):
 	try:
 		cols = ', '.join(data.keys())
 		values = ', '.join([f"%({key})s" for key in data.keys()])
-		query = f"INSERT INTO {table} ({columns}) VALUES ({values})"
+		query = f"INSERT INTO {table} ({cols}) VALUES ({values})"
 		curs.execute(query, data)
 		conn.commit()
-		print("inserted into {table}: {data}")
+		print(f"Inserted into {table}: {data}")
 	except Exception as e:
 		print(f"POST failed: {e}")
 
-def create_account(email, password, username):
-	result = GET("users", criteria=f"email = {email}")
+def create_account(email, password, username, first=None, last=None):
+	result = GET("users", criteria=f"email = '{email}'")
 	if result:
-		print(f"account exists for {email}")
+		print(f"Account exists for {email}")
 	else:
-		POST("users", {"email": email, "password": password, "username": username})
-		print(f"account created for {email}, {username}")
+		entry = {
+			"username": username,
+			"password": encode_password(password),	
+			"email": email,
+			"firstName": None,
+			"lastName": None,
+			"lastAccessDate": datetime.now(),
+			"creationDate": datetime.now(),
+		}
+
+		if first: entry["firstName"] = first
+		if last: entry["lastName"] = last
+		POST("users", entry)
+		print(f"Account created for {email}, {username}")
+		login(email, password)
+		print("Logged in.")
+
+def login(email, password):
+	pass
 
 def main():
 	parser = argparse.ArgumentParser(description="Movie Database Application")
 
 	# cmds
-	parser.add_argument('--create-account', help="create new account", nargs=3, metavar=('EMAIL', 'PASSWORD', 'USERNAME'))
+	parser.add_argument('--create-account', help="create new account", nargs=5, metavar=('EMAIL', 'PASSWORD', 'USERNAME', 'FIRST', 'LAST'))
 	parser.add_argument('--login', help="log in to your account", nargs=2, metavar=('EMAIL', 'PASSWORD'))
 	parser.add_argument('--create-collection', help="create new collection", nargs=2, metavar=('EMAIL', 'COLLECTION'))
 	parser.add_argument('--list-collections', help="list collections", nargs=1, metavar=('USERNAME'))
@@ -87,16 +108,21 @@ def main():
 	parser.add_argument('--follow', help="follow user", nargs=2, metavar=('EMAIL', 'USER'))
 	parser.add_argument('--unfollow', help="unfollow user", nargs=2, metavar=('EMAIL', 'USER'))
 
-	load_dotenv() # env
-	db_connect() # db connection
-	args = parser.parse_args() # parse args
+	load_dotenv()  # env
+	db_connect()  # db connection
 
-	if args.create_account: create_account(args.create_account[0], args.create_account[1], args.create_account[2])
-	#if args.login: login(args.login[0], args.login[1])
-	#if args.create_collection: create_collection(args.create_collection[0], args.create_collection[1])
-	#if args.list_collections: list_collections(args.list_collections)
-	#if args.search_movies: search_movies(args.search_movies[0], args.search_movies[1])
-
+	while True:
+		try:
+			user_input = input("> ")
+			if user_input.strip():
+				args = parser.parse_args(user_input.split())
+				if args.create_account: create_account(args.create_account[0], args.create_account[1], args.create_account[2])
+		except (EOFError, KeyboardInterrupt):
+			print("\nExiting...")
+			break
+		except SystemExit:
+			pass
 
 if __name__ == "__main__":
 	main()
+
