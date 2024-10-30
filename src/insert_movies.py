@@ -63,9 +63,6 @@ def generate_movies():
                             continue
                         runtimemins = row[9]
                         runtimemins = runtimemins.strip().split(",")[0].strip().split(" ")[0]
-                        # runtimemins = runtimemins.strip().split(",")
-                        # runtimemins = runtimemins[0].strip().split(" ")
-                        # runtimemins = runtimemins[0]
                         mpaa = row[8]
 
                         if mpaa == "TV-MA":
