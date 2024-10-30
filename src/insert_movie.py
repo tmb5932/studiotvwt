@@ -1,46 +1,94 @@
-import sys, os
-import argparse
 import csv
-from _csv import reader
+import os
+import random
+import time
 
-#import pandas as pd
+import psycopg2
+from sshtunnel import SSHTunnelForwarder
 
+from dotenv import load_dotenv
 
-def main(): # run with parameters IMDB-Movie-Data.csv and it will read it
-	#	parser = argparse.ArgumentParser("movies")
-	#parser.add_argument('csv_file')
-	#args = parser.parse_args()
-	#df = pd.read_csv(args.csv_file)
-	#print(df)
+def insert_movies(curs, valuesArray):
+    insert_query = """
+    INSERT INTO "movie" (movieId, title, runtime, mpaa)
+    VALUES (%s, %s, %s, %s)
+    """
+    curs.executemany(insert_query, valuesArray)
 
-	with open("IMDB-Movie-Data.csv") as c:
-		csv_reader = csv.reader(c)
+def generate_movies():
+    try:
+        load_dotenv()
+        username = os.getenv("DB_USERNAME")
+        password = os.getenv("DB_PASSWORD")
+        dbName = "p320_11"
+        valuesArray = []
 
-		# skips first row / inits movieid
-		header = True
-		movieid = 1
-		print("INSERT INTO movie (movieid, title, runtime) VALUES " , end="")
-		for row in csv_reader:
-			if header:
-				header= False
-				continue
+        with SSHTunnelForwarder(('starbug.cs.rit.edu', 22),
+                                ssh_username=username,
+                                ssh_password=password,
+                                remote_bind_address=('127.0.0.1', 5432)) as server:
+            server.start()
+            print("SSH tunnel established")
+            params = {
+                'database': dbName,
+                'user': username,
+                'password': password,
+                'host': 'localhost',
+                'port': server.local_bind_port
+            }
 
+            conn = psycopg2.connect(**params)
+            curs = conn.cursor()
+            print("Database connection established")
 
-			title = row[1]
-			genre = row[2]
-			genres = genre.split(",")
-			genstr = ""
-			for genre in genres:
-				genstr += genre + " "
-			runtimemins = row[7]
+            # START OF WORK
 
-			# sql_statement = ("INSERT INTO movie (movieid, title, runtime) VALUES (" + str(movieid) + ", " + title + ", " + runtimemins + ")")
-			movieid = movieid + 1
-			# print(sql_statement)
-			print("(" + str(movieid) + ", '" + title + "', " + runtimemins + "), ", end="")
+            with open("IMDB-Movie-Data.csv") as c:
+                csv_reader = csv.reader(c)
 
+                # skips first row / inits movieid
+                header = True
+                movieid = 0
 
+                for row in csv_reader:
+                        if header:
+                            header = False
+                            continue
+
+                        title = row[1]
+
+                        runtimemins = row[7]
+
+                        mpaa = random.choice(['G', 'PG', 'PG-13', 'R'])
+
+                        valuesArray.append((movieid, title, runtimemins, mpaa))
+                        movieid += 1
+
+                        # Commit every 50 movies to avoid large transactions
+                        if movieid % 50 == 0:
+                            insert_movies(curs, valuesArray)
+                            conn.commit()
+                            valuesArray.clear()
+                            print(f"Inserted {movieid} movies successfully.")
+                            time.sleep(10)
+
+            insert_movies(curs, valuesArray)
+            # Final commit for any remaining movies
+            conn.commit()
+            print(f"All {movieid} users inserted successfully!")
+
+            # END OF WORK
+
+    except Exception as e:
+        print(f"Error: {e}")
+        conn.close()
+    finally:
+        if curs:
+            curs.close()
+        if conn:
+            conn.close()
+        print("Resources cleaned up successfully.")
 
 if __name__ == '__main__':
-	main()
+    generate_movies()
 
