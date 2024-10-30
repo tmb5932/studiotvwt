@@ -54,8 +54,13 @@ def generate_movies():
                         if header:
                             header = False
                             continue
+                        if movieid < 250:
+                            movieid += 1
+                            continue
 
                         title = row[1]
+                        if len(title) > 50:
+                            continue
 
                         runtimemins = row[7]
 
@@ -75,7 +80,7 @@ def generate_movies():
             insert_movies(curs, valuesArray)
             # Final commit for any remaining movies
             conn.commit()
-            print(f"All {movieid} users inserted successfully!")
+            print(f"All {movieid} movies inserted successfully!")
 
             # END OF WORK
 
