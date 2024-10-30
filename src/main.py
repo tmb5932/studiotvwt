@@ -13,6 +13,9 @@ from datetime import datetime
 from dotenv import load_dotenv
 from sshtunnel import SSHTunnelForwarder
 import psycopg2
+from datetime import datetime
+
+from utils import *
 
 conn, curs = None, None  # global db instance
 
@@ -52,7 +55,7 @@ def GET(table, col='*', criteria=None):
 		results = curs.fetchall()
 		for row in results: print(row)
 	except Exception as e:
-		print("GET failed: {e}")
+		print(f"GET failed: {e}")
 
 # INSERT INTO 
 def POST(table, data):
@@ -66,19 +69,36 @@ def POST(table, data):
 	except Exception as e:
 		print(f"POST failed: {e}")
 
-def create_account(email, password, username):
+def create_account(email, password, username, first=None, last=None):
 	result = GET("users", criteria=f"email = '{email}'")
 	if result:
 		print(f"Account exists for {email}")
 	else:
-		POST("users", {"email": email, "password": password, "username": username})
+		entry = {
+			"username": username,
+			"password": encode_password(password),	
+			"email": email,
+			"firstName": None,
+			"lastName": None,
+			"lastAccessDate": datetime.now(),
+			"creationDate": datetime.now(),
+		}
+
+		if first: entry["firstName"] = first
+		if last: entry["lastName"] = last
+		POST("users", entry)
 		print(f"Account created for {email}, {username}")
+		login(email, password)
+		print("Logged in.")
+
+def login(email, password):
+	pass
 
 def main():
 	parser = argparse.ArgumentParser(description="Movie Database Application")
 
 	# cmds
-	parser.add_argument('--create-account', help="create new account", nargs=3, metavar=('EMAIL', 'PASSWORD', 'USERNAME'))
+	parser.add_argument('--create-account', help="create new account", nargs=5, metavar=('EMAIL', 'PASSWORD', 'USERNAME', 'FIRST', 'LAST'))
 	parser.add_argument('--login', help="log in to your account", nargs=2, metavar=('EMAIL', 'PASSWORD'))
 	parser.add_argument('--create-collection', help="create new collection", nargs=2, metavar=('EMAIL', 'COLLECTION'))
 	parser.add_argument('--list-collections', help="list collections", nargs=1, metavar=('USERNAME'))
@@ -102,8 +122,6 @@ def main():
 			break
 		except SystemExit:
 			pass
-		finally:
-			print("Exited.")
 
 if __name__ == "__main__":
 	main()
