@@ -71,7 +71,7 @@ def generate_and_insert_users(already_inserted, num_users):
                     conn.commit()
                     valuesArray.clear()
                     print(f"Inserted {userId} users successfully.")
-                    time.sleep(30)
+                    time.sleep(10)
 
             insert_user(curs, valuesArray)
             # Final commit for any remaining users
