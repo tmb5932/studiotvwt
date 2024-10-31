@@ -21,3 +21,35 @@ To make an account:
 ```
 python3 src/main.py --create-account EMAIL PASSWORD USERNAME
 ```
+
+## GET
+
+* table
+* col='*'
+* criteria = None
+
+## POST
+
+* table
+* data
+
+## Methods
+
+Capital letters specify what value is expected to query the database.
+
+```
+--create-account EMAIL PASSWORD USERNAME FIRST LAST
+--login EMAIL PASSWORD
+--create-collection COLLECTION
+--list-collections USERNAME
+--search-movies QUERY CRITERIA
+--add-movie COLLECTION MOVIE
+--delete-collection COLLECTION
+--follow USERNAME
+--unfollow USERNAME
+--terminate
+```
+
+---
+
+Documentation written by Vladislav Usatii (vau3677@rit.edu)
