@@ -89,6 +89,24 @@ def readgenres2(csvfile):
                             GENRESLIST.append(genrename)
 
 
+
+
+
+
+def genre_read3(csvfile):
+    global GENRESLIST
+    with open(csvfile, encoding='utf-8') as c:
+        csv_reader = csv.reader(c)
+        header = True
+        for row in csv_reader:
+            if header:
+                header = False
+                continue
+            genre = row[1].strip()
+            if genre and genre not in GENRESLIST:
+                GENRESLIST.append(genre)
+
+
 # make an insert query with genreid and the name of the genre in genrelist
 #calls executemany to execute all at the same time.
 def insert_genres(curs, valuesArray):
@@ -126,10 +144,13 @@ def ssh_insert_genres():
 
             csvfile = "IMDB-Movie-Data.csv"
             csvfile2 = "movies_metadata.csv"
+            csvfile3 = "genremore.csv"
             readgenres(csvfile)
             readgenres2(csvfile2)
+            genre_read3(csvfile3)
 
-            valuesArray = [(i + 1, genre) for i, genre in enumerate(GENRESLIST)]
+            #only insert the new generes from genreread3
+            valuesArray = [(i + 44, genre) for i, genre in enumerate(GENRESLIST[43:])]
             insert_genres(curs, valuesArray)
 
             conn.commit()
