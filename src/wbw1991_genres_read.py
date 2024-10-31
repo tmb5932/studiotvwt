@@ -24,6 +24,7 @@ def readgenres(csvfile):
     with open(csvfile) as c:
         csv_reader=csv.reader(c)
 
+
         # skip header row
         header= True
         for row in  csv_reader:
