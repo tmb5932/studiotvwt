@@ -1,6 +1,7 @@
 import os
 import csv
 import time
+import random
 import psycopg2
 from sshtunnel import SSHTunnelForwarder
 from dotenv import load_dotenv
@@ -9,20 +10,9 @@ STATEMENTS = []
 
 def makeSQLStatement():
     global STATEMENTS
-    path = "C:\\Users\\tstur\\PycharmProjects\\studiotvwt\\src\\companies.csv"
-    with open(path) as file:
-        csv_reader = csv.reader(file)
-        header = True
-        studioid = 0
-
-        for row in csv_reader:
-            if header:
-                header = False
-                continue
-            title = row[0]
-            sql_statement = (studioid, title)
-            STATEMENTS.append(sql_statement)
-            studioid = studioid + 1
+    for i in range(0,1000):
+        r = random.randint(1, 85)
+        STATEMENTS.append((i, r))
 
 def sshTunnel():
     try:
@@ -49,12 +39,12 @@ def sshTunnel():
             curs = conn.cursor()
             print("Database connection established")
             insert_query = """
-                INSERT INTO studio (studioid, name) VALUES (%s, %s)
+                INSERT INTO moviegenre (movieid, genreid) VALUES (%s, %s)
                 """
 
             curs.executemany(insert_query, STATEMENTS)
             conn.commit()
-            print("All studios inserted successfully!")
+            print("All genre-movie relations inserted successfully!")
             conn.close()
 
 
