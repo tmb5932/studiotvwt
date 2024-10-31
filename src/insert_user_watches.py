@@ -9,7 +9,8 @@ from dotenv import load_dotenv
 
 def makeSQLStatement():
     statements = []
-    for movie in range(0,999):
+    key = []
+    for movie in range(0, 999):
         user = random.randint(0, 502)
         year = str(random.randint(1950, 2024))
         month = str(random.randint(1, 12))
@@ -18,7 +19,7 @@ def makeSQLStatement():
             month = "0" + month
         if int(day) < 10:
             day = "0" + day
-        hour = str(random.randint(1, 24))
+        hour = str(random.randint(1, 23))
         if int(hour) < 10:
             hour = "0" + hour
         minutes = str(random.randint(0, 59))
@@ -27,7 +28,10 @@ def makeSQLStatement():
         seconds = str(random.randint(0, 59))
         if int(seconds) < 10:
             seconds = "0" + seconds
-        statements.append((movie, user, year + "-" + month + "-" + day + " " + hour + ":" + minutes + ":" + seconds))
+        milliseconds = str(random.randint(100000, 999999))
+        if (movie, user) not in key:
+            statements.append((movie, user, year + "-" + month + "-" + day + " " + hour + ":" + minutes + ":" + seconds + "." + milliseconds))
+            key.append((movie, user))
     return statements
 
 def sshTunnel():
