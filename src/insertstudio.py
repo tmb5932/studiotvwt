@@ -64,7 +64,7 @@ def sshTunnel():
 
 
 def main():
-    statements = makeSQLStatement()
+    makeSQLStatement()
     sshTunnel()
 
 
