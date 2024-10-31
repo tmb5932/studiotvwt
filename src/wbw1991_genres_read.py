@@ -89,6 +89,43 @@ def readgenres2(csvfile):
                             GENRESLIST.append(genrename)
 
 
+
+
+
+
+def genre_read3(csvfile):
+    global GENRESLIST
+    with open(csvfile, encoding='utf-8') as c:
+        csv_reader = csv.reader(c)
+        header = True
+        for row in csv_reader:
+            if header:
+                header = False
+                continue
+            genre = row[1].strip()
+            if genre and genre not in GENRESLIST:
+                GENRESLIST.append(genre)
+
+
+def genre_read4(csvfile):
+    global GENRESLIST
+    with open(csvfile, encoding='utf-8') as c:
+        csv_reader = csv.reader(c)
+        header = True
+        for row in csv_reader:
+            if header:
+                header = False
+                continue
+            genres_str = row[10]  # Assuming the genre column is at index 10
+            col_genres = genres_str.split(", ")
+            for genre in col_genres:
+                new_genre = genre.strip()
+                if new_genre and new_genre not in GENRESLIST:
+                    GENRESLIST.append(new_genre)
+
+
+
+
 # make an insert query with genreid and the name of the genre in genrelist
 #calls executemany to execute all at the same time.
 def insert_genres(curs, valuesArray):
@@ -101,7 +138,7 @@ def insert_genres(curs, valuesArray):
 # connect and then set a genre id to each in genreslist and then call insert genres
 def ssh_insert_genres():
     try:
-        load_dotenv()
+        #load_dotenv()
         username = os.getenv("DB_USER")
         password = os.getenv("DB_PASSWORD")
         dbName = "p320_11"
@@ -126,10 +163,15 @@ def ssh_insert_genres():
 
             csvfile = "IMDB-Movie-Data.csv"
             csvfile2 = "movies_metadata.csv"
+            csvfile3 = "genremore.csv"
+            csvfile4 = "netflix_titles.csv"
             readgenres(csvfile)
             readgenres2(csvfile2)
+            genre_read3(csvfile3)
+            genre_read4(csvfile4)
 
-            valuesArray = [(i + 1, genre) for i, genre in enumerate(GENRESLIST)]
+            #only insert the new generes from genreread3
+            valuesArray = [(i + 44, genre) for i, genre in enumerate(GENRESLIST[43:])]
             insert_genres(curs, valuesArray)
 
             conn.commit()
