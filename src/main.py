@@ -57,6 +57,16 @@ def UPDATE(table, values, criteria=None):
 	except Exception as e:
 		print(f"UPDATE failed: {e}")
 
+def DELETE(table, criteria):
+	try:
+		query = f"DELETE FROM \"{table}\" WHERE {criteria}"
+		curs.execute(query)
+		conn.commit()
+		return True
+	except Exception as e:
+		print(f"UPDATE failed: {e}")
+
+
 def create_account():
 	# Get account info from user
 	email = input(blue.apply("\tEnter your Email: "))
@@ -184,14 +194,14 @@ def edit_collection(old_collection_name, new_collection_name):
 	global logged_in_as
 	if not logged_in:
 		print(red.apply("\tYou must be signed in to create a collection."))
-		return False
+		return
 
 	criteria = f"name = '{old_collection_name}' AND userid = {logged_in_as}"
-	result = GET("collection", "name", criteria, limit=1)
+	result = GET("collection", col="name", criteria=criteria, limit=1)
 	if result:
 		values = f"name = '{new_collection_name}'"
 		criteria = f"name = '{old_collection_name}'"
-		update = UPDATE("collection", values, criteria)
+		update = UPDATE("collection", values=values, criteria=criteria)
 		if update:
 			print(green.apply(f"Updated collection name to {new_collection_name}."))
 		else:
@@ -264,17 +274,18 @@ def view_collection():
 
 def list_collections():
 	if not logged_in:
-		print(red.apply("You must be logged in to search movies."))
+		print(red.apply("You must be logged in to list your collections."))
 		return False
 	collections = GET("collection", "collection.name, count(collectionstores.movieid), sum(movie.runtime)", join="collectionstores on collectionstores.collectionid = collection.collectionid and collectionstores.userid = collection.userid JOIN movie on movie.movieid = collectionstores.movieid", criteria=f"collection.userid = '{logged_in_as}'",group_by="collection.name")
 
 	if not collections:
 		print(green.apply("\tYou have no collections."))
 		return
+	print(green.apply(f"\tYou have {len(collections)} collection(s)."))
 	for col in collections:
 		hours = col[2] // 60
 		minutes = col[2] % 60
-		print(green.apply(f"'{col[0]}', {col[1]} movies, {hours} hours and {minutes} minutes of total runtime"))
+		print(green.apply(f"\t'{col[0]}', {col[1]} movies, {hours} hours and {minutes} minutes of total runtime"))
 
 # search by name, release date, cast members, studio, or genre
 def search_movies():
@@ -337,7 +348,7 @@ def add_to_collection():
 
 	coll_exists = []
 	while not coll_exists:
-		collection = input(blue.apply("\tEnter full name of Collection to add the movie to (type 'q' to quit): "))
+		collection = input(blue.apply("\tEnter full name of Collection to add the movie to (or quit(q)): "))
 		if collection == 'q':
 			return
 		coll_exists = GET("collection", criteria=f"name = '{collection}' and userid = {logged_in_as}")
@@ -346,7 +357,7 @@ def add_to_collection():
 
 	movie_exists = []
 	while not movie_exists:
-		movie = input(blue.apply("\tEnter full name of movie to add (type 'q' to quit): "))
+		movie = input(blue.apply("\tEnter full name of movie to add (or quit(q)): "))
 		if movie == 'q':
 			return
 		movie_exists = GET("movie", criteria=f"title = '{movie}'")
@@ -364,7 +375,33 @@ def add_to_collection():
 
 
 def remove_from_collection():
-	pass
+	global logged_in
+	global logged_in_as
+
+	if not logged_in:
+		print(red.apply("\tYou must be signed in to remove from a collection."))
+		return
+	collection_exists = []
+	while not collection_exists:
+		collection = input(blue.apply("\tEnter the Collection Name to Remove From (or quit(q)): "))
+		if collection == 'q':
+			return
+		collection_exists = GET("collection", criteria=f"name = '{collection}'")
+		if not collection_exists:
+			print(red.apply(f"\tYou have no collection with name {collection}!"))
+
+	movie_exists = []
+	while not movie_exists:
+		movie_exists = input(blue.apply("\tEnter full name of movie to remove (or quit(q)): "))
+		if movie_exists == 'q':
+			return
+		movie_exists = GET("movie", criteria=f"title = '{movie_exists}'")
+		if not movie_exists:
+			print(red.apply(f"\tNo movie exists with name {movie_exists}!"))
+
+	DELETE("collectionstores", criteria=f"name = '{collection} and userid = {logged_in_as} and movieid = {movie_exists[0][0]}'")
+	movie = input(blue.apply("\tEnter the Movie Name to Remove: "))
+
 
 def follow():
 	global logged_in
@@ -374,7 +411,7 @@ def follow():
 		return False
 
 	while True:
-		followed_email = input("Enter the email of the user to follow (or type 'q' to quit): ")
+		followed_email = input("Enter the email of the user to follow (or quit(q)): ")
 		if followed_email.lower() == 'q':
 			print("Follow process canceled.")
 			return
@@ -407,7 +444,7 @@ def unfollow():
 		assert logged_in, red.apply("You must be logged in to unfollow a user.")
 
 		while True:
-			followed_email = input("Enter the email of the user to unfollow (or type 'q' to quit): ")
+			followed_email = input("Enter the email of the user to unfollow (or quit(q)): ")
 			if followed_email.lower() == 'q':
 				print("Unfollow process canceled.")
 				return
@@ -436,7 +473,7 @@ def userrates():
 
 	while True:
 		# Prompt for movie name
-		movie_name = input("\tEnter the movie name (or type 'q' to quit): ")
+		movie_name = input("\tEnter the movie name (or quit(q)): ")
 		if movie_name.lower() == 'q':
 			print("Rating process canceled.")
 			return
@@ -451,7 +488,7 @@ def userrates():
 
 		# Loop until a valid rating
 	while True:
-		rating = int(input("\tEnter your rating (1,2,3,4,5 or type 'q' to quit): "))
+		rating = int(input("\tEnter your rating (1,2,3,4,5 or enter q to quit)): "))
 		if rating == 'q':
 			print("Rating process canceled.")
 			return
@@ -483,7 +520,7 @@ def search_user():
 		return False
 
 	while True:
-		input_chars = input("Enter the starting characters of the email to search ( type 'quit' to quit): ")
+		input_chars = input("Enter the starting characters of the email to search (or quit(q)): ")
 		if input_chars.lower() == 'quit':
 			print("Search process canceled.")
 			return
@@ -581,8 +618,6 @@ def main():
 						name = input(blue.apply("\tEnter the Collection Name to Delete: "))
 						delete_collection(name)
 					elif command == 'remove from collection':
-						collection = input(blue.apply("\tEnter the Collection Name to Remove From: "))
-						movie = input(blue.apply("\tEnter the Movie Name to Remove: "))
 						remove_from_collection()
 					elif command == 'follow':
 						if not logged_in:
