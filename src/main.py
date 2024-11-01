@@ -62,25 +62,43 @@ def UPDATE(table, values, criteria=None):
 	except Exception as e:
 		print(f"UPDATE failed: {e}")
 
-def create_account(email, password, username, first=None, last=None):
-	result = GET("user", criteria=f"email = '{email}'")
-	maxd = GET("user", col=f"MAX(userid)")
-	if result:
+def create_account():
+	# Get account info from user
+	email = input(blue.apply("\tEnter your Email: "))
+	username = input(blue.apply("\tEnter a username: "))
+	while not username:
+		print(red.apply(f"\tUsername cannot be empty."))
+		username = input(blue.apply("\tEnter a username: "))
+
+	password = input(blue.apply("\tEnter a password: "))
+	while not password or len(password) < 6:
+		print(red.apply(f"\tPassword must be at least 6 characters"))
+		password = input(blue.apply("\tEnter a password: "))
+
+	first = input(blue.apply("\tEnter your first name: "))
+	last = input(blue.apply("\tEnter your last name: "))
+
+	email_exists = GET("user", criteria=f"email = '{email}'")
+	username_exists = GET("user", criteria=f"username = '{username}'")
+	maxid = GET("user", col=f"MAX(userid)")
+
+	if email_exists:
 		print(red.apply(f"Account exists for {email}."))
 		return
+	if username_exists:
+		print(red.apply(f"Account exists for {username}."))
+
 	entry = {
-		"userid": str(int(maxd[0][0]) + 1),
+		"userid": str(int(maxid[0][0]) + 1),
 		"username": username,
 		"password": encode_password(password),
 		"email": email,
-		"firstName": None,
-		"lastName": None,
+		"firstName": first,
+		"lastName": last,
 		"lastAccessDate": datetime.now(),
 		"creationDate": datetime.now(),
 	}
 
-	if first: entry["firstName"] = first
-	if last: entry["lastName"] = last
 	post_result = POST("user", entry)
 	if post_result:
 		print(green.apply(f"Account created for {email}, {username}."))
@@ -92,28 +110,38 @@ def login(email, password_guess):
 	# check if logged in
 	global logged_in
 	global logged_in_as
-	if (logged_in): print(f"Already logged in.")
+	if logged_in: print(f"Already logged in.")
 
 	# check if user exists
-	result = GET("user", criteria=f"email = '{email}'")
-	if result:
-		print(green.apply("Logging in..."))
-		userid, username, password = result[0][0], result[0][1], result[0][2]
-		# check password
-		if valid_password(password, password_guess):
-			timed = datetime.now()
-			updated = UPDATE("user", values=f"lastaccessdate = '{timed}'", criteria=f"userid = {userid}")
-			if (updated):
-				logged_in = True
-				logged_in_as = result[0][0]
-				print(green.apply(f"Logged in to {username}'s account."))
-				return True
-			else:
-				print(red.apply(f"Could not log in."))
-		else:
-			print(red.apply(f"Incorrect password."))
+	email_exists = GET("user", criteria=f"email = '{email}'")
+	username_exists = GET("user", criteria=f"email = '{email}'")
+
+	print(green.apply("Logging in..."))
+
+	if not email_exists and not username_exists:
+		print(red.apply("The email or username does not exist."))
+		return False
+
+	if email_exists:
+		userid, username, password = email_exists[0][0], email_exists[0][1], email_exists[0][2]
 	else:
-		print(red.apply("The email or password do not exist."))
+		userid, username, password = username_exists[0][0], username_exists[0][1], username_exists[0][2]
+	# check password
+	if valid_password(password, password_guess):
+		timed = datetime.now()
+		updated = UPDATE("user", values=f"lastaccessdate = '{timed}'", criteria=f"userid = {userid}")
+		if updated:
+			logged_in = True
+			if email_exists:
+				logged_in_as = email_exists[0][0]
+			elif username_exists:
+				logged_in_as = username_exists[0][0]
+			print(green.apply(f"Logged in to {username}'s account."))
+			return True
+		else:
+			print(red.apply(f"Could not log in."))
+	else:
+		print(red.apply(f"Incorrect password."))
 
 def logout():
 	# check if logged in
@@ -353,20 +381,7 @@ def main():
 					if command == "help":
 						help_message()
 					elif command == 'create account':
-						email = input(blue.apply("Enter your Email: "))
-						username = input(blue.apply("\tEnter a username: "))
-						while not username:
-							print(red.apply(f"\tUsername cannot be empty."))
-							username = input(blue.apply("\tEnter a username: "))
-						password = input(blue.apply("\tEnter a password: "))
-
-						while not password or len(password) < 6:
-							print(red.apply(f"\tPassword must be at least 6 characters"))
-							password = input(blue.apply("\tEnter a password: "))
-
-						first = input(blue.apply("\tEnter your first name: "))
-						last = input(blue.apply("\tEnter your last name: "))
-						create_account(email, username, password, first, last)
+						create_account()
 					elif command == 'login':
 						email = input(blue.apply("\tEnter your Email or Username: "))
 						password = input(blue.apply("\tEnter your Password: "))
