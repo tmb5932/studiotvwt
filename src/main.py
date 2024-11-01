@@ -245,26 +245,36 @@ def search_movies():
 		result = GET("movie", col=columns, criteria=f"title LIKE '%{name}%'", limit=25)
 		if result:
 			print(blue.apply(f"\tShowing up to 25 Movies with '{name}' in the title."))
+			print(green.apply("\tNAME, RUNTIME, MPAA"))
+
 	elif method == 2:
 		date = None
-		while date != "ASC" and date != "DESC":
-			date = (input(blue.apply("\tSort by Release Date Ascending (ASC) or Descending (DESC): "))).capitalize()
+		while date != "asc" and date != "desc":
+			date = (input(blue.apply("\tSort by Release Date Ascending (ASC) or Descending (DESC): "))).lower()
 
 		result = GET("movie", col=columns + ", moviereleases.releasedate", join= "moviereleases ON movie.movieid = moviereleases.movieid", sort_col='moviereleases.releasedate', sort_by=date, limit=25)
-		print(blue.apply(f"\tShowing 25 Movies in {date} order."))
-	elif method == 3:
-		cast_first = input(blue.apply("\tEnter the Cast Member First Name: "))
-		cast_last = input(blue.apply("\tEnter the Cast Member Last Name: "))
+		print(blue.apply(f"\tShowing 25 Movies in {date.capitalize()} order."))
+		print(green.apply("\tNAME, RUNTIME, MPAA, RELEASEDATE"))
 
-		result = GET("movie", col=columns, join="movieactsin ON movie.movieid = movieactsin.movieid JOIN productionteam ON movieactsin.productionid = productionteam.productionid", criteria=f"productionteam.firstname = '{cast_first}' AND productionteam.lastname = '{cast_last}'", limit=25)
+	elif method == 3:
+		cast_first = input(blue.apply("\tEnter the Cast Member First Name or Leave Empty: "))
+		cast_last = input(blue.apply("\tEnter the Cast Member Last Name or Leave Empty: "))
+
+		result = GET("movie", col=columns + ", productionteam.firstname, productionteam.lastname", join="movieactsin ON movie.movieid = movieactsin.movieid JOIN productionteam ON movieactsin.productionid = productionteam.productionid", criteria=f"productionteam.firstname LIKE '%{cast_first}%' AND productionteam.lastname LIKE '%{cast_last}%'", limit=25)
 		print(blue.apply(f"\tShowing up to 25 Movies with cast member '{cast_first} {cast_last}'."))
+		print(green.apply("\tNAME, RUNTIME, MPAA, CAST FIRST NAME, CAST LAST NAME"))
+
 	elif method == 4:
 		studio = input(blue.apply("\tEnter Studio Name: "))
-		result = GET("movie", col=columns + ", studio.name", join=f"movieproduces ON movie.movieid = movieproduces.movieid JOIN studio ON movieproduces.studioid = studio.studioid", criteria=f"studio.name = '{studio}'")
+		result = GET("movie", col=columns + ", studio.name", join=f"movieproduces ON movie.movieid = movieproduces.movieid JOIN studio ON movieproduces.studioid = studio.studioid", criteria=f"studio.name LIKE '%{studio}%'")
 		print(blue.apply(f"\tShowing all Movies from {studio}."))
+		print(green.apply("\tNAME, RUNTIME, MPAA, STUDIO"))
+
 	elif method == 5:
 		genre = input(blue.apply("\tEnter Genre: "))
-		result = GET("movie", col=columns + ", genre.name", join=f"moviegenre ON movie.movieid = moviegenre.movieid JOIN genre ON moviegenre.genreid = genre.genreid", criteria=f"genre.name = '{genre}'")
+		result = GET("movie", col=columns + ", genre.name", join=f"moviegenre ON movie.movieid = moviegenre.movieid JOIN genre ON moviegenre.genreid = genre.genreid", criteria=f"genre.name LIKE '%{genre}%'", limit=25)
+		print(blue.apply(f"\tShowing up to 25 Movies in {genre}."))
+		print(green.apply("\tNAME, RUNTIME, MPAA, GENRE"))
 
 	for res in result:
 		print(green.apply(f"\t{res}"))
@@ -418,7 +428,7 @@ def main():
 						logout()
 					elif command == 'create collection':
 						create_collection()
-					elif command == 'search movies':
+					elif command == 'search movies' or command == 'sm':
 						search_movies()
 					elif command == 'add movie':
 						if not logged_in:
