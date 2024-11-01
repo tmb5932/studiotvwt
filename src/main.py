@@ -20,12 +20,13 @@ logged_in = False # global login instance
 logged_in_as = None
 
 # SELECT * [from *]
-def GET(table, col='*', criteria=None, limit=None, sort_col=None, sort_by='DESC'):
+def GET(table, col='*', criteria=None, limit=None, join=None, sort_col=None, sort_by='DESC'):
 	try:
 		query = f"SELECT {col} FROM \"{table}\""
+		if join: query += f" JOIN {join}"
 		if criteria: query += f" WHERE {criteria}"
-		if limit: query += f" LIMIT {limit}"
 		if sort_col: query += f" ORDER BY {sort_col} { sort_by }"
+		if limit: query += f" LIMIT {limit}"
 		curs.execute(query)
 		return curs.fetchall()
 	except Exception as e:
@@ -211,7 +212,7 @@ def delete_collection(collection_name):
 
 #TODO: print [name, number_movies, total_movie_length]
 def list_collections(username, limit=50):
-	userid = GET("user", criteria="username = '{username}'")
+	userid = GET("user", criteria=f"username = '{username}'")
 
 	self_collections = input(blue.apply("\tDo you want to see your collections(Y), or another users collections(N): ")).lower()
 
@@ -224,7 +225,7 @@ def list_collections(username, limit=50):
 		name = input(blue.apply("\tEnter the User's Username: "))
 		list_collections(name)
 
-	collections = GET("collection", criteria="userid = '{userid}'", limit=50)
+	collections = GET("collection", criteria=f"userid = '{userid}'", limit=50)
 
 	print([collection for collection in collections[0]])
 
@@ -244,12 +245,14 @@ def search_movies():
 		while date != "asc" and date != "desc":
 			date = input(blue.apply("\tSort by Release Date Ascending (ASC) or Descending (DESC): ")).lower
 
-		results = GET("movie", sort_col='', sort_by="asc")
+		results = GET("movie", join= f"moviereleases ON movie.movieid = moviereleases.movieid", sort_col='moviereleases.releasedate', sort_by=date)
 	elif method == 3:
-		cast = input(blue.apply("\tEnter the Cast Member Name: "))
-		search_movies(cast, cast)
+		cast_first = input(blue.apply("\tEnter the Cast Member First Name: "))
+		cast_last = input(blue.apply("\tEnter the Cast Member Last Name: "))
+
+		results = GET("movie", join=f"movieactsin ON movie.movieid = movieactsin.movieid JOIN productionteam ON movieactsin.productionid = productionteam.productionid", criteria=f"productionteam.firstname = '{cast_first}' AND productionteam.lastname = '{cast_last}'")
 	elif method == 4:
-		date = input(blue.apply("\tSort by Release Date Ascending (ASC) or Descending (DESC): "))
+		studio = input(blue.apply("\tEnter Studio Name: "))
 
 	return results
 
