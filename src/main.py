@@ -156,7 +156,7 @@ def create_collection():
 
 	if not logged_in:
 		print(red.apply("\tYou must be signed in to create a collection."))
-		return False
+		return
 
 	collection_name = input(blue.apply("\tEnter the Collection Name: "))
 
@@ -244,7 +244,7 @@ def search_movies():
 		name = input(blue.apply("\tEnter the Movie Title: "))
 		result = GET("movie", col=columns, criteria=f"title LIKE '%{name}%'", limit=25)
 		if result:
-			print(blue.apply(f"\tShowing up to 25 Movies with '{name}' in the title."))
+			print(blue.apply(f"\tShowing up to 25 movies with '{name}' in the title."))
 			print(green.apply("\tNAME, RUNTIME, MPAA"))
 
 	elif method == 2:
@@ -253,7 +253,7 @@ def search_movies():
 			date = (input(blue.apply("\tSort by Release Date Ascending (ASC) or Descending (DESC): "))).lower()
 
 		result = GET("movie", col=columns + ", moviereleases.releasedate", join= "moviereleases ON movie.movieid = moviereleases.movieid", sort_col='moviereleases.releasedate', sort_by=date, limit=25)
-		print(blue.apply(f"\tShowing 25 Movies in {date.capitalize()} order."))
+		print(blue.apply(f"\tShowing 25 movies in {date.capitalize()} order."))
 		print(green.apply("\tNAME, RUNTIME, MPAA, RELEASEDATE"))
 
 	elif method == 3:
@@ -261,26 +261,59 @@ def search_movies():
 		cast_last = input(blue.apply("\tEnter the Cast Member Last Name or Leave Empty: "))
 
 		result = GET("movie", col=columns + ", productionteam.firstname, productionteam.lastname", join="movieactsin ON movie.movieid = movieactsin.movieid JOIN productionteam ON movieactsin.productionid = productionteam.productionid", criteria=f"productionteam.firstname LIKE '%{cast_first}%' AND productionteam.lastname LIKE '%{cast_last}%'", limit=25)
-		print(blue.apply(f"\tShowing up to 25 Movies with cast member '{cast_first} {cast_last}'."))
+		print(blue.apply(f"\tShowing up to 25 movies with cast member '{cast_first} {cast_last}'."))
 		print(green.apply("\tNAME, RUNTIME, MPAA, CAST FIRST NAME, CAST LAST NAME"))
 
 	elif method == 4:
 		studio = input(blue.apply("\tEnter Studio Name: "))
 		result = GET("movie", col=columns + ", studio.name", join=f"movieproduces ON movie.movieid = movieproduces.movieid JOIN studio ON movieproduces.studioid = studio.studioid", criteria=f"studio.name LIKE '%{studio}%'")
-		print(blue.apply(f"\tShowing all Movies from {studio}."))
+		print(blue.apply(f"\tShowing all movies from {studio}."))
 		print(green.apply("\tNAME, RUNTIME, MPAA, STUDIO"))
 
 	elif method == 5:
 		genre = input(blue.apply("\tEnter Genre: "))
 		result = GET("movie", col=columns + ", genre.name", join=f"moviegenre ON movie.movieid = moviegenre.movieid JOIN genre ON moviegenre.genreid = genre.genreid", criteria=f"genre.name LIKE '%{genre}%'", limit=25)
-		print(blue.apply(f"\tShowing up to 25 Movies in {genre}."))
+		print(blue.apply(f"\tShowing up to 25 movies in {genre}."))
 		print(green.apply("\tNAME, RUNTIME, MPAA, GENRE"))
 
 	for res in result:
 		print(green.apply(f"\t{res}"))
 
 def add_to_collection():
-	pass
+	global logged_in
+	global logged_in_as
+
+	if not logged_in:
+		print(red.apply("\tYou must be signed in to add to a collection."))
+		return
+
+	coll_exists = []
+	while not coll_exists:
+		collection = input(blue.apply("\tEnter full name of Collection to add the movie to (type 'q' to quit): "))
+		if collection == 'q':
+			return
+		coll_exists = GET("collection", criteria=f"name = '{collection}' and userid = {logged_in_as}")
+		if not coll_exists:
+			print(red.apply(f"\tYou have no collection with name '{collection}'!"))
+
+	movie_exists = []
+	while not movie_exists:
+		movie = input(blue.apply("\tEnter full name of movie to add (type 'q' to quit): "))
+		if movie == 'q':
+			return
+		movie_exists = GET("movie", criteria=f"title = '{movie}'")
+		if not movie_exists:
+			print(red.apply(f"\tNo movie exists with name {movie}!"))
+
+
+	entry = {"collectionid": coll_exists[0][1], "userId": logged_in_as, "movieId": movie_exists[0][0]}
+
+	post_result = POST("collectionstores", entry)
+	if post_result:
+		print(green.apply(f"'{movie}' added to collection '{collection}'."))
+	else:
+		print(red.apply("Movie addition to collection failed."))
+
 
 def remove_from_collection():
 	pass
@@ -499,6 +532,8 @@ def main():
 						curs.close()
 						conn.close()
 						break
+					else:
+						print(red.apply(f"\t{command} is not a valid command!"))
 	except Exception as e:
 		print(f"Db connection error: {e}")
 
