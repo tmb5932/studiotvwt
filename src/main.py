@@ -235,9 +235,13 @@ def delete_collection():
 	print(green.apply(f"Deleted {collection_name}."))
 
 def view_collection():
-	self_collections = input(blue.apply("\tDo you want to see your collections(Y), another users collections(N), or cancel(Q): ")).lower()
-	if self_collections == "q":
-		return
+	self_collections = None
+	while self_collections != 'y' and self_collections != 'n':
+		self_collections = input(blue.apply("\tDo you want to see your collections(Y), another users collections(N), or cancel(Q): ")).lower()
+		if self_collections == "q":
+			return
+		if self_collections != 'y' and self_collections != 'n':
+			print(red.apply("\tInvalid Option."))
 
 	userid = None
 	if self_collections == 'y':
@@ -261,7 +265,7 @@ def view_collection():
 		collection = input(blue.apply("\tEnter the Collection's Name: "))
 		collection_exists = GET("collection", criteria=f"name = '{collection}' and userid = {userid}")
 		if not collection_exists:
-			print(red.apply(f"User {name} has no collection '{collection}'."))
+			print(red.apply(f"The collection '{collection}' does not exist."))
 
 	result = GET("movie", col="title, runtime, mpaa", join=f"collectionstores ON movie.movieid = collectionstores.movieid JOIN collection ON collection.collectionid = collectionstores.collectionid", criteria=f"collection.name = '{collection}'")
 
@@ -276,7 +280,8 @@ def view_collection():
 	minute = total_runtime % 60
 	print(green.apply(f"\tCollection '{collection}' {len(result)} movies, {hour} hours and {minute} minutes of total runtime."))
 	print(green.apply(f"\tTITLE, RUNTIME, MPAA"))
-	print(green.apply(["\t" + res for res in result[0]]))
+	for res in result:
+		print(green.apply('\t' + res))
 
 def list_collections():
 	if not logged_in:
@@ -406,7 +411,7 @@ def remove_from_collection():
 		if not movie_exists:
 			print(red.apply(f"\tNo movie exists with name {movie}!"))
 
-	DELETE("collectionstores", criteria=f"name = '{collection} and userid = {logged_in_as} and movieid = {movie_exists[0][0]}'")
+	DELETE("collectionstores", criteria=f"collectionid = '{collection_exists[0][1]} and userid = {logged_in_as} and movieid = {movie_exists[0][0]}'")
 	print(green.apply(f"\tRemoved '{movie}' from collection '{collection}'."))
 
 def follow():
@@ -461,6 +466,9 @@ def unfollow():
 				continue
 
 			followedid = followed_user[0][0]
+			DELETE("userfollows", criteria=f"followerid = {logged_in_as} and followedid = {followedid}")
+			print(green.apply(f"Unfollowed {followed_email}."))
+
 			try:
 				query = f"DELETE FROM userfollows WHERE followerid = %s AND followedid = %s"
 				curs.execute(query, (logged_in_as, followedid))
