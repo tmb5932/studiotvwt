@@ -279,26 +279,34 @@ def follow(followed_email):
 	global logged_in
 	global logged_in_as
 	assert logged_in, red.apply("You must be logged in to follow a user.")
-	followed_user = GET("user", col="userid", criteria=f"email = '{followed_email}'")
-	if not followed_user:
-		print(f"User {followed_email} does not exist.")
-		return
-	followedid = followed_user[0][0]
-	query = {
-		"followerid": logged_in_as,
-		"followedid": followedid
-	}
-	already_following = GET("userfollows", criteria=f"followerid = {logged_in_as} AND followedid = {followedid}")
-	if not already_following:
-		return_value = POST("userfollows", query)
-		if return_value:
-			print(green.apply(f"Followed user {followed_email} successfully."))
-			return True
-		print(red.apply("Following user failed."))
-		return False
-	else:
-		print(red.apply("You are already following this user."))
-		return False
+
+	while True:
+		followed_email = input("Enter the email of the user to follow (or type 'q' to quit): ")
+		if followed_email.lower() == 'q':
+			print("Follow process canceled.")
+			return
+
+		followed_user = GET("user", col="userid", criteria=f"email = '{followed_email}'")
+		if not followed_user:
+			print(f"User {followed_email} does not exist.")
+			continue
+
+		followedid = followed_user[0][0]
+		query = {
+			"followerid": logged_in_as,
+			"followedid": followedid
+		}
+		already_following = GET("userfollows", criteria=f"followerid = {logged_in_as} AND followedid = {followedid}")
+		if not already_following:
+			return_value = POST("userfollows", query)
+			if return_value:
+				print(green.apply(f"Followed user {followed_email} successfully."))
+			else:
+				print(red.apply("Following user failed."))
+			return
+		else:
+			print(red.apply("You are already following this user."))
+			return
 
 def unfollow(followed):
 	global logged_in
@@ -356,7 +364,7 @@ def userrates():
 	else:
 		print(red.apply("Failed to add rating."))
 
-
+LOGI
 
 def search_user():
 	global logged_in
