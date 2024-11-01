@@ -19,14 +19,6 @@ conn, curs = None, None  # global db instance
 logged_in = False # global login instance
 logged_in_as = None
 
-class CustomArgumentParser(argparse.ArgumentParser):
-	def exit(self, status=0, message=None):
-		if message: self._print_message(message, sys.stderr)
-
-	def error(self, message):
-		self.print_usage(sys.stderr)
-		self.exit(status=2, message=f'{self.prog}: error: {message}\n')
-
 # SELECT * [from *]
 def GET(table, col='*', criteria=None, limit=None):
 	try:
@@ -46,7 +38,6 @@ def POST(table, data):
 		query = f"INSERT INTO \"{table}\" ({cols}) VALUES ({values})"
 		curs.execute(query, data)
 		conn.commit()
-		print(green.apply(f"Inserted into {table}: {data}"))
 		return True
 	except Exception as e:
 		print(red.apply(f"POST failed: {e}"))
@@ -57,7 +48,6 @@ def UPDATE(table, values, criteria=None):
 		if criteria: query += f" WHERE {criteria}"
 		curs.execute(query)
 		conn.commit()
-		print(green.apply(f"Updated into {table}: {values}"))
 		return True
 	except Exception as e:
 		print(f"UPDATE failed: {e}")
