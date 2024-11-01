@@ -7,14 +7,11 @@ Command line interface to control the Movies database.
 Author: Vladislav Usatii (vau3677@g.rit.edu)
 
 """
-import sys, os, random
 import argparse
 from datetime import datetime
-from re import search
-from dotenv import load_dotenv
-from sshtunnel import SSHTunnelForwarder
+
 import psycopg2
-from datetime import datetime
+from sshtunnel import SSHTunnelForwarder
 
 from utils import *
 
@@ -439,6 +436,8 @@ def main():
 							print(red.apply(f"\tYou are not logged in."))
 							continue
 						unfollow()
+					elif command == 'rate movie':
+						userrates()
 					elif command == 'quit' or command == 'exit':
 						# close connection
 						curs.close()
