@@ -476,6 +476,89 @@ def userrates():
 	else:
 		print(red.apply("Failed to add rating."))
 
+
+
+
+from datetime import datetime
+
+def watch():
+    global logged_in, logged_in_as
+    if not logged_in:
+        print(red.apply("\tYou must be signed in to watch a movie or collection."))
+        return False
+
+    while True:
+        media_type = input('Watch a single Movie or Collection? (input "movie" or "collection"): ')
+        if media_type.lower() == 'q':
+            print("Watch process canceled.")
+            return
+
+        if media_type not in ["movie", "collection"]:
+            print("Invalid input. Please enter 'movie' or 'collection'.")
+        else:
+            break
+
+    watch_date = datetime.now().isoformat(' ', 'microseconds')
+
+    if media_type == "movie":
+        while True:
+            media_name = input("\tEnter the movie name ( type 'q' to quit): ")
+            if media_name.lower() == 'q':
+                print("Watch process canceled.")
+                return
+
+            media = GET("movie", criteria=f"title = '{media_name}'")
+            if not media:
+                print(red.apply("Movie not found. Please enter a proper name (check for typos)."))
+                continue
+            else:
+                media_id = media[0][0]
+                break
+
+    elif media_type == "collection":
+        while True:
+            media_name = input("\tEnter the collection name (or type 'q' to quit): ")
+            if media_name.lower() == 'q':
+                print("Watch process canceled.")
+                return
+
+            media = GET("collection", criteria=f"name = '{media_name}'")
+            if not media:
+                print(red.apply("Collection not found. Please enter a proper name (check for typos)."))
+                continue
+            else:
+                collection_id = media[0][0]
+                movies = GET("movie", col="movieId", criteria=f"collectionId = {collection_id}")
+
+                for movie in movies:
+                    movie_id = movie[0]
+                    movie_name = movie[1]
+                    entry = {"movieId": movie_id, "userId": logged_in_as, "watchDate": watch_date}
+                    post_result = POST("userwatches", entry)
+                    print(green.apply(f"Movie marked as watched: {movie_name}."))
+
+                print(green.apply(f"Entire collection '{media_name}' marked as watched."))
+                return
+
+    entry = {"movieId": media_id, "userId": logged_in_as, "watchDate": watch_date}
+    post_result = POST("userwatches", entry)
+    if post_result:
+        print(green.apply(f"Movie marked as watched: {media_name}."))
+    else:
+        print(red.apply("Failed to mark movie as watched."))
+
+
+
+
+
+
+
+
+
+
+
+
+
 def search_user():
 	global logged_in
 	if not logged_in:
@@ -599,6 +682,8 @@ def main():
 						userrates()
 					elif command == 'search user':
 						search_user()
+					elif command == "watch":
+						watch()
 					elif command == 'quit' or command == 'exit':
 						# close connection
 						curs.close()
