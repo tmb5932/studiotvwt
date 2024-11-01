@@ -1,30 +1,23 @@
 import os
-import csv
-import time
-import psycopg2
 import random
+import psycopg2
 from sshtunnel import SSHTunnelForwarder
 from dotenv import load_dotenv
 
 
-
-
 def makeSQLStatement():
     statements = []
-    path = "C:\\Users\\tstur\\PycharmProjects\\studiotvwt\\src\\Collections.csv"
-    with open(path) as file:
-        csv_reader = csv.reader(file)
-        collectionid = 0
-        for row in csv_reader:
-            name = row[0]
-            userid = random.randint(0, 498)
-            statements.append((userid, collectionid, name))
-            collectionid = collectionid + 1
+    for collection in range(0,138):
+        user = random.randint(0, 502)
+        for j in range(9):
+            movie = random.randint(0, 999)
+            if(user, movie, collection) not in statements:
+                statements.append((user, movie, collection))
     return statements
 
-def sshtunnel():
+def sshTunnel():
     try:
-        # load_dotenv()
+        load_dotenv()
         username = os.getenv("USERNAME")
         password = os.getenv("PASSWORD")
         dbName = "p320_11"
@@ -46,24 +39,25 @@ def sshtunnel():
             conn = psycopg2.connect(**params)
             curs = conn.cursor()
             print("Database connection established")
-            statements = makeSQLStatement()
             insert_query = """
-                INSERT INTO collection (userid, collectionid, name) VALUES (%s, %s, %s)
+                INSERT INTO collectionstores (userid, movieid, collectionid) VALUES (%s, %s, %s)
                 """
-
+            statements = makeSQLStatement()
             curs.executemany(insert_query, statements)
             conn.commit()
-            print("All collections inserted successfully!")
+            print("All collection storage relations inserted successfully!")
             conn.close()
 
 
     except:
-       print("Connection failed")
+        print("Connection failed")
 
 
 
 def main():
-    sshtunnel()
+    makeSQLStatement()
+    sshTunnel()
+
 
 
 if __name__ == "__main__":

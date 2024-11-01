@@ -1,7 +1,4 @@
 import sys, os
-import argparse
-import ast
-import csv
 from _csv import reader
 from sshtunnel import SSHTunnelForwarder
 from dotenv import load_dotenv

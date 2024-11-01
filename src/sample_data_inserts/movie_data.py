@@ -13,7 +13,7 @@ def main(): # run with parameters IMDB-Movie-Data.csv and it will read it
 	#df = pd.read_csv(args.csv_file)
 	#print(df)
 
-	with open("netflix_titles.csv", encoding="utf-8") as c:
+	with open("../../data/netflix_titles.csv", encoding="utf-8") as c:
 		csv_reader = csv.reader(c)
 
 		# skips first row / inits movieid

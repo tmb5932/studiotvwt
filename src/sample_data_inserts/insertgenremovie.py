@@ -1,22 +1,20 @@
 import os
-import csv
-import time
 import random
 import psycopg2
 from sshtunnel import SSHTunnelForwarder
 from dotenv import load_dotenv
 
+STATEMENTS = []
 
 def makeSQLStatement():
-    statements = []
-    for i in range(0,999):
-        r = random.randint(0, 174)
-        statements.append((i, r))
-    return statements
+    global STATEMENTS
+    for i in range(0,1000):
+        r = random.randint(1, 85)
+        STATEMENTS.append((i, r))
 
 def sshTunnel():
     try:
-        # load_dotenv()
+        load_dotenv()
         username = os.getenv("USERNAME")
         password = os.getenv("PASSWORD")
         dbName = "p320_11"
@@ -38,14 +36,13 @@ def sshTunnel():
             conn = psycopg2.connect(**params)
             curs = conn.cursor()
             print("Database connection established")
-
             insert_query = """
-                INSERT INTO movieproduces (movieid, studioid) VALUES (%s, %s)
+                INSERT INTO moviegenre (movieid, genreid) VALUES (%s, %s)
                 """
-            statements = makeSQLStatement()
-            curs.executemany(insert_query, statements)
+
+            curs.executemany(insert_query, STATEMENTS)
             conn.commit()
-            print("All movie-producer relations inserted successfully!")
+            print("All genre-movie relations inserted successfully!")
             conn.close()
 
 

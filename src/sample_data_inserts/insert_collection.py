@@ -1,22 +1,29 @@
 import os
 import csv
-import time
-import random
 import psycopg2
+import random
 from sshtunnel import SSHTunnelForwarder
 from dotenv import load_dotenv
 
-STATEMENTS = []
+
+
 
 def makeSQLStatement():
-    global STATEMENTS
-    for i in range(0,1000):
-        r = random.randint(1, 85)
-        STATEMENTS.append((i, r))
+    statements = []
+    path = "C:\\Users\\tstur\\PycharmProjects\\studiotvwt\\src\\Collections.csv"
+    with open(path) as file:
+        csv_reader = csv.reader(file)
+        collectionid = 0
+        for row in csv_reader:
+            name = row[0]
+            userid = random.randint(0, 498)
+            statements.append((userid, collectionid, name))
+            collectionid = collectionid + 1
+    return statements
 
-def sshTunnel():
+def sshtunnel():
     try:
-        # load_dotenv()
+        load_dotenv()
         username = os.getenv("USERNAME")
         password = os.getenv("PASSWORD")
         dbName = "p320_11"
@@ -38,25 +45,24 @@ def sshTunnel():
             conn = psycopg2.connect(**params)
             curs = conn.cursor()
             print("Database connection established")
+            statements = makeSQLStatement()
             insert_query = """
-                INSERT INTO moviegenre (movieid, genreid) VALUES (%s, %s)
+                INSERT INTO collection (userid, collectionid, name) VALUES (%s, %s, %s)
                 """
 
-            curs.executemany(insert_query, STATEMENTS)
+            curs.executemany(insert_query, statements)
             conn.commit()
-            print("All genre-movie relations inserted successfully!")
+            print("All collections inserted successfully!")
             conn.close()
 
 
     except:
-        print("Connection failed")
+       print("Connection failed")
 
 
 
 def main():
-    makeSQLStatement()
-    sshTunnel()
-
+    sshtunnel()
 
 
 if __name__ == "__main__":

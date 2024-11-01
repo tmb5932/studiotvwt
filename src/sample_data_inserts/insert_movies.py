@@ -1,6 +1,5 @@
 import csv
 import os
-import random
 import time
 
 import psycopg2
@@ -43,7 +42,7 @@ def generate_movies():
 
             # START OF WORK
 
-            with open("netflix_titles.csv") as c:
+            with open("../../data/netflix_titles.csv") as c:
                 csv_reader = csv.reader(c)
 
                 # skips first row / inits movieid

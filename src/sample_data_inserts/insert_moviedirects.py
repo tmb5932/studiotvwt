@@ -1,4 +1,3 @@
-import csv
 import os
 import random
 import time
@@ -8,9 +7,9 @@ from sshtunnel import SSHTunnelForwarder
 
 from dotenv import load_dotenv
 
-def insert_acts_in(curs, valuesArray):
+def insert_directs(curs, valuesArray):
     insert_query = """
-    INSERT INTO "movieactsin" (movieId, productionid)
+    INSERT INTO "moviedirects" (movieId, productionid)
     VALUES (%s, %s)
     """
     curs.executemany(insert_query, valuesArray)
@@ -42,30 +41,44 @@ def generate_movies():
             print("Database connection established")
 
             # START OF WORK
-            # im really sorry that this effectively brute forces with overlaps but i didn't want to figure out better solution
-            # surprisingly even with 1000 actors to choose from with a 2nd chance still got 2 overlap errors
-            for movieid in range(0, 1000):
+            movies = set(range(0, 1000))
 
-                for num in range(0, random.randint(3, 7)):
-                    rand = random.randint(0, 1000)
-                    for value in valuesArray:
-                        if value == (movieid, rand):
-                            rand = random.randint(0, 1000)
-                    valuesArray.append((movieid, rand))
+            for productionid in range(1000, 1249):
 
+                for num in range(0, random.randint(1, 5)):
+                    random_movie = random.choice(list(movies))
+                    valuesArray.append((random_movie, productionid))
+                    movies.remove(random_movie)
 
-                # Commit every 40 movies to avoid large transactions
-                if movieid % 40 == 0:
-                    insert_acts_in(curs, valuesArray)
+                # Commit every 40 directors to avoid large transactions
+                if productionid % 40 == 0:
+                    insert_directs(curs, valuesArray)
                     conn.commit()
                     valuesArray.clear()
-                    print(f"Inserted {movieid} movies actor relations successfully.")
-                    time.sleep(2)
+                    print(f"Inserted {productionid - 1000} directors movie relations successfully.")
+                    time.sleep(5)
 
-            insert_acts_in(curs, valuesArray)
+            insert_directs(curs, valuesArray)
+            conn.commit()
+            valuesArray.clear()
+
+            i = 0
+            while movies:
+                director = random.randint(1000, 1250)
+                random_movie = movies.pop()
+                valuesArray.append((random_movie, director))
+                i += 1
+                if i % 50 == 0:
+                    insert_directs(curs, valuesArray)
+                    conn.commit()
+                    valuesArray.clear()
+                    print(f"Inserted {i} directors movie relations successfully.")
+                    time.sleep(5)
+
+            insert_directs(curs, valuesArray)
             # Final commit for any remaining values
             conn.commit()
-            print(f"All {movieid} movies actor relations inserted successfully!")
+            print(f"All movie director relations inserted successfully!")
 
             # END OF TRAVIS WORK
 

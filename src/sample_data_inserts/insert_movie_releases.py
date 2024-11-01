@@ -1,6 +1,4 @@
 import os
-import csv
-import time
 import random
 import psycopg2
 from sshtunnel import SSHTunnelForwarder
@@ -25,7 +23,7 @@ def makeSQLStatement():
 
 def sshTunnel():
     try:
-        # load_dotenv()
+        load_dotenv()
         username = os.getenv("USERNAME")
         password = os.getenv("PASSWORD")
         dbName = "p320_11"
