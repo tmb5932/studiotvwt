@@ -392,28 +392,34 @@ def userrates():
 		print(red.apply("\tYou must be signed in to create a collection."))
 		return False
 
-	# prompt
-	movie_name = input("Enter the movie name: ")
-	rating = int(input("Enter your rating (1,2,3,4,5): "))
-
-	movie = GET("movie", criteria=f"title = '{movie_name}'")
-
-	# Loop until a valid movie
-	while not movie:
-		print(red.apply("Movie not found. Please enter a proper name (check for typos)."))
-		movie_name = input("Enter the movie name (or type 'q' to quit): ")
-		if movie_name == 'q':
+	while True:
+		# Prompt for movie name
+		movie_name = input("\tEnter the movie name (or type 'q' to quit): ")
+		if movie_name.lower() == 'q':
 			print("Rating process canceled.")
 			return
+
+		# Check if movie exists
 		movie = GET("movie", criteria=f"title = '{movie_name}'")
+		if not movie:
+			print(red.apply("Movie not found. Please enter a proper name (check for typos)."))
+			continue  # Prompt for movie name again
+		else:
+			break
 
-	# Loop until a valid rating
-	while rating not in [1, 2, 3, 4, 5]:
-		print(red.apply("Invalid rating. Please enter {1,2,3,4 or 5}"))
-		rating = input("Enter your rating (1-5, or type 'q' to quit): ")
-		if rating.lower() == 'q':
+		# Loop until a valid rating
+	while True:
+		rating = int(input("\tEnter your rating (1,2,3,4,5 or type 'q' to quit): "))
+		if rating == 'q':
 			print("Rating process canceled.")
 			return
+
+		if rating not in [1, 2, 3, 4, 5]:
+			print(red.apply("Invalid rating. Please enter {1,2,3,4,5}"))
+			continue
+		else:
+			break
+
 
 	# get the movie id
 	movie_id = movie[0][0]
@@ -469,6 +475,7 @@ def help_message():
 	print(blue.apply("FOLLOW                   follow another user"))
 	print(blue.apply("UNFOLLOW                 unfollow another user"))
 	print(blue.apply("SEARCH USER              search users by email"))
+	print(blue.apply("RATE MOVIE               applies a rating to a movie"))
 	print(blue.apply("QUIT/EXIT                quit the program"))
 	print(blue.apply("----------------------------------------------------------------"))
 
