@@ -4,7 +4,7 @@ main.py
 
 Command line interface to control the Movies database.
 
-Author: Vladislav Usatii (vau3677@g.rit.edu)
+Authors: Vladislav Usatii (vau3677@g.rit.edu), William Walker (wbw1991@g.rit.edu),
 
 """
 import argparse
