@@ -11,11 +11,9 @@ Author: Travis Brown (tmb5932@rit.edu)
 """
 import argparse
 from datetime import datetime
-from tokenize import group
 
 import psycopg2
 from sshtunnel import SSHTunnelForwarder
-from tmdbv3api.objs import collection
 
 from utils import *
 
@@ -228,7 +226,7 @@ def view_collection():
 	userid = None
 	if self_collections == 'y':
 		if not logged_in:
-			print(red.apply("You must be logged in to search movies."))
+			print(red.apply("You must be logged in to view your collections."))
 			return False
 		userid = logged_in_as
 	elif self_collections == 'n':
@@ -284,46 +282,49 @@ def search_movies():
 	global logged_in_as
 
 	result = []
-	columns = "movie.title, movie.runtime, movie.mpaa"
+	columns = "movie.title, movie.runtime, movie.mpaa, avg(userrates.rating)"
 
 	method = int(input(blue.apply("\tSearch by Movie Title(1), Release Date(2), Cast Member(3), Studio(4), or Genre(5): ")))
 	if method == 1:
 		name = input(blue.apply("\tEnter the Movie Title: "))
-		result = GET("movie", col=columns, criteria=f"title LIKE '%{name}%'", limit=25)
+		result = GET("movie", join="userrates on userrates.movieid = movie.movieid", col=columns, criteria=f"title LIKE '%{name}%'", group_by="movie.movieid", limit=25)
 		if result:
 			print(blue.apply(f"\tShowing up to 25 movies with '{name}' in the title."))
-			print(green.apply("\tNAME, RUNTIME, MPAA"))
+			print(green.apply("\tNAME, RUNTIME, MPAA, AVG USER RATING"))
 
 	elif method == 2:
 		date = None
 		while date != "asc" and date != "desc":
 			date = (input(blue.apply("\tSort by Release Date Ascending (ASC) or Descending (DESC): "))).lower()
 
-		result = GET("movie", col=columns + ", moviereleases.releasedate", join= "moviereleases ON movie.movieid = moviereleases.movieid", sort_col='moviereleases.releasedate', sort_by=date, limit=25)
+		result = GET("movie", col=columns + ", moviereleases.releasedate", join= "moviereleases ON movie.movieid = moviereleases.movieid JOIN userrates on userrates.movieid = movie.movieid", sort_col='moviereleases.releasedate', sort_by=date, group_by="movie.movieid", limit=25)
 		print(blue.apply(f"\tShowing 25 movies in {date.capitalize()} order."))
-		print(green.apply("\tNAME, RUNTIME, MPAA, RELEASEDATE"))
+		print(green.apply("\tNAME, RUNTIME, MPAA, AVG USER RATING, RELEASEDATE"))
 
 	elif method == 3:
 		cast_first = input(blue.apply("\tEnter the Cast Member First Name or Leave Empty: "))
 		cast_last = input(blue.apply("\tEnter the Cast Member Last Name or Leave Empty: "))
 
-		result = GET("movie", col=columns + ", productionteam.firstname, productionteam.lastname", join="movieactsin ON movie.movieid = movieactsin.movieid JOIN productionteam ON movieactsin.productionid = productionteam.productionid", criteria=f"productionteam.firstname LIKE '%{cast_first}%' AND productionteam.lastname LIKE '%{cast_last}%'", limit=25)
+		result = GET("movie", col=columns + ", productionteam.firstname, productionteam.lastname", join="movieactsin ON movie.movieid = movieactsin.movieid JOIN productionteam ON movieactsin.productionid = productionteam.productionid JOIN userrates on userrates.movieid = movie.movieid", criteria=f"productionteam.firstname LIKE '%{cast_first}%' AND productionteam.lastname LIKE '%{cast_last}%'", group_by="movie.movieid", limit=25)
 		print(blue.apply(f"\tShowing up to 25 movies with cast member '{cast_first} {cast_last}'."))
-		print(green.apply("\tNAME, RUNTIME, MPAA, CAST FIRST NAME, CAST LAST NAME"))
+		print(green.apply("\tNAME, RUNTIME, MPAA, AVG USER RATING, CAST FIRST NAME, CAST LAST NAME"))
 
 	elif method == 4:
 		studio = input(blue.apply("\tEnter Studio Name: "))
-		result = GET("movie", col=columns + ", studio.name", join=f"movieproduces ON movie.movieid = movieproduces.movieid JOIN studio ON movieproduces.studioid = studio.studioid", criteria=f"studio.name LIKE '%{studio}%'")
+		result = GET("movie", col=columns + ", studio.name", join=f"movieproduces ON movie.movieid = movieproduces.movieid JOIN userrates on userrates.movieid = movie.movieid JOIN studio ON movieproduces.studioid = studio.studioid", criteria=f"studio.name LIKE '%{studio}%'", group_by="movie.movieid")
 		print(blue.apply(f"\tShowing all movies from {studio}."))
-		print(green.apply("\tNAME, RUNTIME, MPAA, STUDIO"))
+		print(green.apply("\tNAME, RUNTIME, MPAA, AVG USER RATING, STUDIO"))
 
 	elif method == 5:
 		genre = input(blue.apply("\tEnter Genre: "))
-		result = GET("movie", col=columns + ", genre.name", join=f"moviegenre ON movie.movieid = moviegenre.movieid JOIN genre ON moviegenre.genreid = genre.genreid", criteria=f"genre.name LIKE '%{genre}%'", limit=25)
+		result = GET("movie", col=columns + ", genre.name", join=f"moviegenre ON movie.movieid = moviegenre.movieid JOIN genre ON moviegenre.genreid = genre.genreid JOIN userrates on userrates.movieid = movie.movieid", criteria=f"genre.name LIKE '%{genre}%'", group_by="movie.movieid", limit=25)
 		print(blue.apply(f"\tShowing up to 25 movies in {genre}."))
-		print(green.apply("\tNAME, RUNTIME, MPAA, GENRE"))
+		print(green.apply("\tNAME, RUNTIME, MPAA, AVG USER RATING, GENRE"))
 
 	for res in result:
+		res = list(res)
+		res[3] = round(float(res[3]), 2)
+		res = tuple(res)
 		print(green.apply(f"\t{res}"))
 
 def add_to_collection():
