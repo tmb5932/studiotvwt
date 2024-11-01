@@ -209,24 +209,26 @@ def edit_collection(old_collection_name, new_collection_name):
 	else:
 		print(red.apply(f"This is either not your collection or the old name is not correct."))
 
-def delete_collection(collection_name):
+def delete_collection():
 	global logged_in
 	global logged_in_as
 	if not logged_in:
 		print(red.apply("\tYou must be signed in to create a collection."))
 		return False
 
-	collection = GET("collection", col="userid", criteria=f"userid = '{logged_in_as}' AND name = '{collection_name}'")
-	if collection:
-		try:
-			query = f"DELETE FROM collection WHERE userid = %s AND name = %s"
-			curs.execute(query, (logged_in_as, collection_name))
-			conn.commit()
-			print(green.apply(f"Removed {collection_name}."))
-		except Exception as e:
-			print(red.apply(f"Failed to delete {collection_name}."))
-	else:
-		print(red.apply(f"This collection does not exist."))
+	collection = []
+	while not collection:
+		collection_name = input(blue.apply("\tEnter Collection name to delete (or quit(q)): "))
+		if collection_name == 'q':
+			return
+
+		collection = GET("collection", criteria=f"userid = '{logged_in_as}' AND name = '{collection_name}'")
+		if not collection:
+			print(red.apply(f"Collection '{collection_name}' does not exist."))
+
+
+	DELETE("collection", criteria=f"userid = '{logged_in_as}' and name = '{collection_name}'")
+	print(green.apply(f"Deleted {collection_name}."))
 
 def view_collection():
 	self_collections = input(blue.apply("\tDo you want to see your collections(Y), another users collections(N), or cancel(Q): ")).lower()
@@ -381,6 +383,7 @@ def remove_from_collection():
 	if not logged_in:
 		print(red.apply("\tYou must be signed in to remove from a collection."))
 		return
+
 	collection_exists = []
 	while not collection_exists:
 		collection = input(blue.apply("\tEnter the Collection Name to Remove From (or quit(q)): "))
@@ -392,16 +395,15 @@ def remove_from_collection():
 
 	movie_exists = []
 	while not movie_exists:
-		movie_exists = input(blue.apply("\tEnter full name of movie to remove (or quit(q)): "))
-		if movie_exists == 'q':
+		movie = input(blue.apply("\tEnter full name of movie to remove (or quit(q)): "))
+		if movie == 'q':
 			return
-		movie_exists = GET("movie", criteria=f"title = '{movie_exists}'")
+		movie_exists = GET("movie", criteria=f"title = '{movie}'")
 		if not movie_exists:
-			print(red.apply(f"\tNo movie exists with name {movie_exists}!"))
+			print(red.apply(f"\tNo movie exists with name {movie}!"))
 
 	DELETE("collectionstores", criteria=f"name = '{collection} and userid = {logged_in_as} and movieid = {movie_exists[0][0]}'")
-	movie = input(blue.apply("\tEnter the Movie Name to Remove: "))
-
+	print(green.apply(f"\tRemoved '{movie}' from collection '{collection}'."))
 
 def follow():
 	global logged_in
