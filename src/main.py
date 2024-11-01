@@ -124,7 +124,7 @@ def login(email_username, password_guess):
 
 	if not email_exists and not username_exists:
 		print(red.apply("The email or username does not exist."))
-		return False
+		return
 
 	if email_exists:
 		userid, username, password = email_exists[0][0], email_exists[0][1], email_exists[0][2]
@@ -159,7 +159,7 @@ def logout():
 		return True
 	else:
 		print(red.apply("Not logged in."))
-		return False
+		return
 
 def create_collection():
 	global logged_in
@@ -214,7 +214,7 @@ def delete_collection():
 	global logged_in_as
 	if not logged_in:
 		print(red.apply("\tYou must be signed in to create a collection."))
-		return False
+		return
 
 	collection = []
 	while not collection:
@@ -239,7 +239,7 @@ def view_collection():
 	if self_collections == 'y':
 		if not logged_in:
 			print(red.apply("You must be logged in to view your collections."))
-			return False
+			return
 		userid = logged_in_as
 	elif self_collections == 'n':
 		name_exists = []
@@ -277,7 +277,7 @@ def view_collection():
 def list_collections():
 	if not logged_in:
 		print(red.apply("You must be logged in to list your collections."))
-		return False
+		return
 	collections = GET("collection", "collection.name, count(collectionstores.movieid), sum(movie.runtime)", join="collectionstores on collectionstores.collectionid = collection.collectionid and collectionstores.userid = collection.userid JOIN movie on movie.movieid = collectionstores.movieid", criteria=f"collection.userid = '{logged_in_as}'",group_by="collection.name")
 
 	if not collections:
@@ -410,7 +410,7 @@ def follow():
 	global logged_in_as
 	if not logged_in:
 		print(red.apply("\tYou must be signed in to create a collection."))
-		return False
+		return
 
 	while True:
 		followed_email = input("Enter the email of the user to follow (or quit(q)): ")
@@ -471,7 +471,7 @@ def userrates():
 	global logged_in, logged_in_as
 	if not logged_in:
 		print(red.apply("\tYou must be signed in to create a collection."))
-		return False
+		return
 
 	while True:
 		# Prompt for movie name
@@ -524,7 +524,7 @@ def watch():
     global logged_in, logged_in_as
     if not logged_in:
         print(red.apply("\tYou must be signed in to watch a movie or collection."))
-        return False
+        return
 
     while True:
         media_type = input('Watch a single Movie or Collection? (input "movie" or "collection"): ')
@@ -602,7 +602,7 @@ def search_user():
 	global logged_in
 	if not logged_in:
 		print(red.apply("\tYou must be signed in to create a collection."))
-		return False
+		return
 
 	while True:
 		input_chars = input("Enter the starting characters of the email to search (or quit(q)): ")
