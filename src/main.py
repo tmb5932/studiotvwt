@@ -260,6 +260,47 @@ def unfollow(followed):
 			print(red.apply(f"Failed to unfollow {followed}."))
 
 
+def userrates():
+	global logged_in, logged_in_as
+	assert logged_in, red.apply("You must be logged in to rate a movie.")
+
+	# prompt
+	movie_name = input("Enter the movie name: ")
+	rating = int(input("Enter your rating (1,2,3,4,5): "))
+
+	movie = GET("movie", criteria=f"title = '{movie_name}'")
+
+	# Loop until a valid movie
+	while not movie:
+		print(red.apply("Movie not found. Please enter a proper name (check for typos)."))
+		movie_name = input("Enter the movie name (or type 'q' to quit): ")
+		if movie_name == 'q':
+			print("Rating process canceled.")
+			return
+		movie = GET("movie", criteria=f"title = '{movie_name}'")
+
+
+	# Loop until a valid rating
+	while rating not in [1, 2, 3, 4, 5]:
+		print(red.apply("Invalid rating. Please enter {1,2,3,4 or 5}"))
+		rating = input("Enter your rating (1-5, or type 'q' to quit): ")
+		if rating.lower() == 'q':
+			print("Rating process canceled.")
+			return
+
+	# get the movie id
+	movie_id = movie[0][0]
+
+	# Create entry
+	entry = { "movieId": movie_id, "userId": logged_in_as,"rating": rating }
+
+	# Insert the rating
+	post_result = POST("userrates", entry)
+	if post_result:
+		print(green.apply(f"Rating added: {movie_name} - {rating} stars."))
+	else:
+		print(red.apply("Failed to add rating."))
+
 
 def main():
 	parser = CustomArgumentParser(description="Movie Database Application") # cmds
