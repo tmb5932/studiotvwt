@@ -176,14 +176,11 @@ def create_collection():
 		print(red.apply(f"Collection '{collection_name}' already exists."))
 		return
 
-	maxid = GET("collection", col=f"MAX(collectionid)", criteria=f"userid = '{logged_in_as}'")
-	if maxid:
-		newid = str(int(maxid[0][0]) + 1)
-	else:
-		newid = 0
+	maxid = GET("collection", col=f"MAX(collectionid)")
+
 	entry = {
 		"userid": logged_in_as,
-		"collectionid": newid,
+		"collectionid": maxid[0][0] + 1,
 		"name": collection_name,
 	}
 
@@ -367,23 +364,24 @@ def add_to_collection():
 			print(red.apply(f"\tYou have no collection with name '{collection}'!"))
 
 	movie_exists = []
-	while not movie_exists:
+	while True:
 		movie = input(blue.apply("\tEnter full name of movie to add (or quit(q)): "))
-		if movie == 'q':
-			return
+		if movie.lower() == 'q':
+			print("Movie addition process ended.")
+			break
+
 		movie_exists = GET("movie", criteria=f"title = '{movie}'")
 		if not movie_exists:
 			print(red.apply(f"\tNo movie exists with name {movie}!"))
+			continue
 
+		entry = {"collectionid": coll_exists[0][1], "userId": logged_in_as, "movieId": movie_exists[0][0]}
 
-	entry = {"collectionid": coll_exists[0][1], "userId": logged_in_as, "movieId": movie_exists[0][0]}
-
-	post_result = POST("collectionstores", entry)
-	if post_result:
-		print(green.apply(f"'{movie}' added to collection '{collection}'."))
-	else:
-		print(red.apply("Movie addition to collection failed."))
-
+		post_result = POST("collectionstores", entry)
+		if post_result:
+			print(green.apply(f"'{movie}' added to collection '{collection}'."))
+		else:
+			print(red.apply("Movie addition to collection failed."))
 
 def remove_from_collection():
 	global logged_in
@@ -529,9 +527,6 @@ def userrates():
 
 
 
-
-from datetime import datetime
-
 def watch():
     global logged_in, logged_in_as
     if not logged_in:
@@ -650,7 +645,7 @@ def help_message():
 	print(blue.apply("UNFOLLOW                 unfollow another user"))
 	print(blue.apply("SEARCH USER              search users by email"))
 	print(blue.apply("RATE MOVIE               applies a rating to a movie"))
-	print(blue.apply("WATCH	                   Watch a movie or all movies in a collection"))
+	print(blue.apply("WATCH	                   watch a movie or all movies in a collection"))
 	print(blue.apply("QUIT/EXIT                quit the program"))
 	print(blue.apply("----------------------------------------------------------------"))
 
