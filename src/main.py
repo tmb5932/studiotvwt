@@ -231,32 +231,43 @@ def list_collections(username, limit=50):
 
 	print([collection for collection in collections[0]])
 
+# search by name, release date, cast members, studio, or genre
 def search_movies():
 	global logged_in
 	global logged_in_as
 
-	# search by name, release date, cast members, studio, or genre
-	results = None
+	result = []
+	columns = "movie.title, movie.runtime, movie.mpaa"
 
-	method = input(blue.apply("\tSearch by Movie Name(1), Release Date(2), Cast Member(3), Studio(4), or Genre(5): "))
+	method = int(input(blue.apply("\tSearch by Movie Title(1), Release Date(2), Cast Member(3), Studio(4), or Genre(5): ")))
 	if method == 1:
-		name = input(blue.apply("\tEnter the Movie Name: "))
-		results = GET("movie", criteria=f"title = '{name}'")
+		name = input(blue.apply("\tEnter the Movie Title: "))
+		result = GET("movie", col=columns, criteria=f"title LIKE '%{name}%'", limit=25)
+		if result:
+			print(blue.apply(f"\tShowing up to 25 Movies with '{name}' in the title."))
 	elif method == 2:
 		date = None
-		while date != "asc" and date != "desc":
-			date = input(blue.apply("\tSort by Release Date Ascending (ASC) or Descending (DESC): ")).lower
+		while date != "ASC" and date != "DESC":
+			date = (input(blue.apply("\tSort by Release Date Ascending (ASC) or Descending (DESC): "))).capitalize()
 
-		results = GET("movie", join= f"moviereleases ON movie.movieid = moviereleases.movieid", sort_col='moviereleases.releasedate', sort_by=date)
+		result = GET("movie", col=columns + ", moviereleases.releasedate", join= "moviereleases ON movie.movieid = moviereleases.movieid", sort_col='moviereleases.releasedate', sort_by=date, limit=25)
+		print(blue.apply(f"\tShowing 25 Movies in {date} order."))
 	elif method == 3:
 		cast_first = input(blue.apply("\tEnter the Cast Member First Name: "))
 		cast_last = input(blue.apply("\tEnter the Cast Member Last Name: "))
 
-		results = GET("movie", join=f"movieactsin ON movie.movieid = movieactsin.movieid JOIN productionteam ON movieactsin.productionid = productionteam.productionid", criteria=f"productionteam.firstname = '{cast_first}' AND productionteam.lastname = '{cast_last}'")
+		result = GET("movie", col=columns, join="movieactsin ON movie.movieid = movieactsin.movieid JOIN productionteam ON movieactsin.productionid = productionteam.productionid", criteria=f"productionteam.firstname = '{cast_first}' AND productionteam.lastname = '{cast_last}'", limit=25)
+		print(blue.apply(f"\tShowing up to 25 Movies with cast member '{cast_first} {cast_last}'."))
 	elif method == 4:
 		studio = input(blue.apply("\tEnter Studio Name: "))
+		result = GET("movie", col=columns + ", studio.name", join=f"movieproduces ON movie.movieid = movieproduces.movieid JOIN studio ON movieproduces.studioid = studio.studioid", criteria=f"studio.name = '{studio}'")
+		print(blue.apply(f"\tShowing all Movies from {studio}."))
+	elif method == 5:
+		genre = input(blue.apply("\tEnter Genre: "))
+		result = GET("movie", col=columns + ", genre.name", join=f"moviegenre ON movie.movieid = moviegenre.movieid JOIN genre ON moviegenre.genreid = genre.genreid", criteria=f"genre.name = '{genre}'")
 
-	return results
+	for res in result:
+		print(green.apply(f"\t{res}"))
 
 def add_movie(collection, movie):
 	pass
@@ -264,13 +275,13 @@ def add_movie(collection, movie):
 def delete_movie(collection, movie):
 	pass
 
-def follow(followed_username):
+def follow(followed_email):
 	global logged_in
 	global logged_in_as
 	assert logged_in, red.apply("You must be logged in to follow a user.")
-	followed_user = GET("user", col="userid", criteria=f"username = '{followed_username}'")
+	followed_user = GET("user", col="userid", criteria=f"email = '{followed_email}'")
 	if not followed_user:
-		print(f"User {followed_username} does not exist.")
+		print(f"User {followed_email} does not exist.")
 		return
 	followedid = followed_user[0][0]
 	query = {
@@ -281,7 +292,7 @@ def follow(followed_username):
 	if not already_following:
 		return_value = POST("userfollows", query)
 		if return_value:
-			print(green.apply("Followed user."))
+			print(green.apply(f"Followed user {followed_email} successfully."))
 			return True
 		print(red.apply("Following user failed."))
 		return False
@@ -407,7 +418,7 @@ def main():
 						logout()
 					elif command == 'create collection':
 						create_collection()
-					elif command == 'list collections':
+					elif command == 'search movies':
 						search_movies()
 					elif command == 'add movie':
 						if not logged_in:
