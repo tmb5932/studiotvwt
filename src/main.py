@@ -9,7 +9,6 @@ Author: William Walker (wbw1991@g.rit.edu)
 Author: Travis Brown (tmb5932@rit.edu)
 
 """
-import argparse
 from datetime import datetime
 
 import psycopg2
@@ -65,7 +64,6 @@ def DELETE(table, criteria):
 		return True
 	except Exception as e:
 		print(f"UPDATE failed: {e}")
-
 
 def create_account():
 	# Get account info from user
@@ -468,7 +466,6 @@ def unfollow():
 			DELETE("userfollows", criteria=f"followerid = {logged_in_as} and followedid = {followedid}")
 			print(green.apply(f"Unfollowed {followed_email}."))
 
-
 def userrates():
 	global logged_in, logged_in_as
 	if not logged_in:
@@ -515,7 +512,6 @@ def userrates():
 		print(green.apply(f"Rating added: {movie_name} - {rating} stars."))
 	else:
 		print(red.apply("Failed to add rating."))
-
 
 def watch():
     global logged_in, logged_in_as
@@ -616,7 +612,6 @@ def search_user():
 			for user in users:
 				print("\t" + user[0])
 
-
 def help_message():
 	print(blue.apply("                Studio TVWT Commands"))
 	print(blue.apply("-----------------------------------------------------------------------------"))
@@ -641,7 +636,7 @@ def help_message():
 	print(blue.apply("-----------------------------------------------------------------------------"))
 
 def main():
-	load_dotenv() # env
+	load_dotenv()
 
 	global conn, curs
 	try:
