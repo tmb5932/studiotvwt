@@ -177,9 +177,13 @@ def create_collection():
 		return
 
 	maxid = GET("collection", col=f"MAX(collectionid)", criteria=f"userid = '{logged_in_as}'")
+	if maxid:
+		newid = str(int(maxid[0][0]) + 1)
+	else:
+		newid = 0
 	entry = {
 		"userid": logged_in_as,
-		"collectionid": str(int(maxid[0][0]) + 1),
+		"collectionid": newid,
 		"name": collection_name,
 	}
 
