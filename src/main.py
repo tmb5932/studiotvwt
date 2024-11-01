@@ -11,9 +11,11 @@ Author: Travis Brown (tmb5932@rit.edu)
 """
 import argparse
 from datetime import datetime
+from tokenize import group
 
 import psycopg2
 from sshtunnel import SSHTunnelForwarder
+from tmdbv3api.objs import collection
 
 from utils import *
 
@@ -22,11 +24,12 @@ logged_in = False # global login instance
 logged_in_as = None
 
 # SELECT * [from *]
-def GET(table, col='*', criteria=None, limit=None, join=None, sort_col=None, sort_by='DESC'):
+def GET(table, col='*', criteria=None, limit=None, join=None, sort_col=None, sort_by='DESC', group_by=None):
 	try:
 		query = f"SELECT {col} FROM \"{table}\""
 		if join: query += f" JOIN {join}"
 		if criteria: query += f" WHERE {criteria}"
+		if group_by: query += f" GROUP BY {group_by}"
 		if sort_col: query += f" ORDER BY {sort_col} { sort_by }"
 		if limit: query += f" LIMIT {limit}"
 		curs.execute(query)
@@ -110,7 +113,6 @@ def login(email_username, password_guess):
 	email_exists = GET("user", criteria=f"email = '{email_username}'")
 	username_exists = GET("user", criteria=f"username = '{email_username}'")
 
-	print(green.apply("Logging in..."))
 
 	if not email_exists and not username_exists:
 		print(red.apply("The email or username does not exist."))
@@ -123,6 +125,7 @@ def login(email_username, password_guess):
 	# check password
 	if valid_password(password, password_guess):
 		time = datetime.now()
+		print(green.apply("Logging in..."))
 		updated = UPDATE("user", values=f"lastaccessdate = '{time}'", criteria=f"userid = {userid}")
 		if updated:
 			logged_in = True
@@ -217,26 +220,63 @@ def delete_collection(collection_name):
 	else:
 		print(red.apply(f"This collection does not exist."))
 
+def view_collection():
+	self_collections = input(blue.apply("\tDo you want to see your collections(Y), another users collections(N), or cancel(Q): ")).lower()
+	if self_collections == "q":
+		return
 
-#TODO: print [name, number_movies, total_movie_length]
-def list_collections(username, limit=50):
-	userid = GET("user", criteria=f"username = '{username}'")
-
-	self_collections = input(blue.apply("\tDo you want to see your collections(Y), or another users collections(N): ")).lower()
-
+	userid = None
 	if self_collections == 'y':
 		if not logged_in:
 			print(red.apply("You must be logged in to search movies."))
 			return False
-		list_collections(logged_in_as)
+		userid = logged_in_as
 	elif self_collections == 'n':
-		name = input(blue.apply("\tEnter the User's Username: "))
-		list_collections(name)
+		name_exists = []
+		while not name_exists:
+			name = input(blue.apply("\tEnter the User's Email or Username: "))
+			name_exists = GET("user", criteria=f"email = '{name}'")
+			if not name_exists:
+				name_exists = GET("user", criteria=f"username = '{name}'")
+				if not name_exists:
+					print(red.apply(f"User '{name}' does not exist."))
+		userid = name_exists[0][0]
 
-	collections = GET("collection", criteria=f"userid = '{userid}'", limit=50)
+	collection_exists = []
+	while not collection_exists:
+		collection = input(blue.apply("\tEnter the Collection's Name: "))
+		collection_exists = GET("collection", criteria=f"name = '{collection}' and userid = {userid}")
+		if not collection_exists:
+			print(red.apply(f"User {name} has no collection '{collection}'."))
 
-	print([collection for collection in collections[0]])
+	result = GET("movie", col="title, runtime, mpaa", join=f"collectionstores ON movie.movieid = collectionstores.movieid JOIN collection ON collection.collectionid = collectionstores.collectionid", criteria=f"collection.name = '{collection}'")
 
+	if not result:
+		print(green.apply(f"Collection '{collection}' does is empty."))
+		return
+	total_runtime = 0
+	for res in result:
+		total_runtime += int(res[1])
+
+	hour = total_runtime // 60
+	minute = total_runtime % 60
+	print(green.apply(f"\tCollection '{collection}' {len(result)} movies, {hour} hours and {minute} minutes of total runtime."))
+	print(green.apply(f"\tTITLE, RUNTIME, MPAA"))
+	print(green.apply(["\t" + res for res in result[0]]))
+
+def list_collections():
+	if not logged_in:
+		print(red.apply("You must be logged in to search movies."))
+		return False
+	collections = GET("collection", "collection.name, count(collectionstores.movieid), sum(movie.runtime)", join="collectionstores on collectionstores.collectionid = collection.collectionid and collectionstores.userid = collection.userid JOIN movie on movie.movieid = collectionstores.movieid", criteria=f"collection.userid = '{logged_in_as}'",group_by="collection.name")
+
+	if not collections:
+		print(green.apply("\tYou have no collections."))
+		return
+	for collection in collections:
+		hours = collection[2] // 60
+		minutes = collection[2] % 60
+		print(green.apply(f"'{collection[0]}', {len(collection)} movies, {hours} hours and {minutes} minutes of total runtime"))
 # search by name, release date, cast members, studio, or genre
 def search_movies():
 	global logged_in
@@ -428,8 +468,6 @@ def userrates():
 	else:
 		print(red.apply("Failed to add rating."))
 
-
-
 def search_user():
 	global logged_in
 	if not logged_in:
@@ -517,8 +555,10 @@ def main():
 						create_collection()
 					elif command == 'search movies' or command == 'sm':
 						search_movies()
-					elif command == 'list collection':
+					elif command == 'list collections':
 						list_collections()
+					elif command == 'view collection':
+						view_collection()
 					elif command == 'add to collection':
 						add_to_collection()
 					elif command == 'edit collection':
