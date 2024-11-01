@@ -363,7 +363,6 @@ def add_to_collection():
 		if not coll_exists:
 			print(red.apply(f"\tYou have no collection with name '{collection}'!"))
 
-	movie_exists = []
 	while True:
 		movie = input(blue.apply("\tEnter full name of movie to add (or quit(q)): "))
 		if movie.lower() == 'q':
@@ -416,7 +415,7 @@ def follow():
 	global logged_in
 	global logged_in_as
 	if not logged_in:
-		print(red.apply("\tYou must be signed in to create a collection."))
+		print(red.apply("\tYou must be signed in to follow another user."))
 		return
 
 	while True:
@@ -450,7 +449,9 @@ def follow():
 def unfollow():
 		global logged_in
 		global logged_in_as
-		assert logged_in, red.apply("You must be logged in to unfollow a user.")
+		if not logged_in:
+			print(red.apply("\tYou must be signed in to unfollow a user."))
+			return
 
 		while True:
 			followed_email = input("Enter the email of the user to unfollow (or quit(q)): ")
@@ -467,20 +468,11 @@ def unfollow():
 			DELETE("userfollows", criteria=f"followerid = {logged_in_as} and followedid = {followedid}")
 			print(green.apply(f"Unfollowed {followed_email}."))
 
-			try:
-				query = f"DELETE FROM userfollows WHERE followerid = %s AND followedid = %s"
-				curs.execute(query, (logged_in_as, followedid))
-				conn.commit()
-				print(green.apply(f"Unfollowed {followed_email}."))
-			except Exception as e:
-				print(red.apply(f"Failed to unfollow {followed_email}."))
-			return
-
 
 def userrates():
 	global logged_in, logged_in_as
 	if not logged_in:
-		print(red.apply("\tYou must be signed in to create a collection."))
+		print(red.apply("\tYou must be signed in to rate a movie."))
 		return
 
 	while True:
@@ -511,7 +503,6 @@ def userrates():
 		else:
 			break
 
-
 	# get the movie id
 	movie_id = movie[0][0]
 
@@ -524,7 +515,6 @@ def userrates():
 		print(green.apply(f"Rating added: {movie_name} - {rating} stars."))
 	else:
 		print(red.apply("Failed to add rating."))
-
 
 
 def watch():
@@ -608,7 +598,7 @@ def watch():
 def search_user():
 	global logged_in
 	if not logged_in:
-		print(red.apply("\tYou must be signed in to create a collection."))
+		print(red.apply("\tYou must be signed in to search for a user."))
 		return
 
 	while True:
@@ -629,25 +619,26 @@ def search_user():
 
 def help_message():
 	print(blue.apply("                Studio TVWT Commands"))
-	print(blue.apply("----------------------------------------------------------------"))
+	print(blue.apply("-----------------------------------------------------------------------------"))
 	print(blue.apply("HELP                     show this help message and exit"))
 	print(blue.apply("CREATE ACCOUNT           create new account"))
 	print(blue.apply("LOGIN                    log in to your account"))
 	print(blue.apply("LOGOUT                   log out of your account"))
 	print(blue.apply("CREATE COLLECTION        create new collection"))
-	print(blue.apply("LIST COLLECTION          lists a user's (or your own) collections"))
+	print(blue.apply("LIST COLLECTIONS         lists a user's (or your own) collections"))
 	print(blue.apply("EDIT COLLECTION          change your collection's name"))
 	print(blue.apply("DELETE COLLECTION        delete one of your collections"))
 	print(blue.apply("SEARCH MOVIES            search movies"))
 	print(blue.apply("ADD TO COLLECTION        add a movie to one of your collections"))
 	print(blue.apply("REMOVE FROM COLLECTION   delete a movie from one of your collections"))
+	print(blue.apply("VIEW COLLECTION          view a collection of another user (or your own)"))
 	print(blue.apply("FOLLOW                   follow another user"))
 	print(blue.apply("UNFOLLOW                 unfollow another user"))
-	print(blue.apply("SEARCH USER              search users by email"))
+	print(blue.apply("SEARCH USERS             search users by email"))
 	print(blue.apply("RATE MOVIE               applies a rating to a movie"))
 	print(blue.apply("WATCH	                   watch a movie or all movies in a collection"))
 	print(blue.apply("QUIT/EXIT                quit the program"))
-	print(blue.apply("----------------------------------------------------------------"))
+	print(blue.apply("-----------------------------------------------------------------------------"))
 
 def main():
 	load_dotenv() # env
@@ -708,23 +699,16 @@ def main():
 						new_name = input(blue.apply("\tEnter the New Collection Name: "))
 						edit_collection(old_name, new_name)
 					elif command == 'delete collection':
-						name = input(blue.apply("\tEnter the Collection Name to Delete: "))
-						delete_collection(name)
+						delete_collection()
 					elif command == 'remove from collection':
 						remove_from_collection()
 					elif command == 'follow':
-						if not logged_in:
-							print(red.apply(f"\tYou are not logged in."))
-							continue
 						follow()
 					elif command == 'unfollow':
-						if not logged_in:
-							print(red.apply(f"\tYou are not logged in."))
-							continue
 						unfollow()
 					elif command == 'rate movie':
 						userrates()
-					elif command == 'search user':
+					elif command == 'search users':
 						search_user()
 					elif command == "watch":
 						watch()
