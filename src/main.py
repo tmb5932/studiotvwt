@@ -278,7 +278,7 @@ def view_collection():
 	print(green.apply(f"\tCollection '{collection}' {len(result)} movies, {hour} hours and {minute} minutes of total runtime."))
 	print(green.apply(f"\tTITLE, RUNTIME, MPAA"))
 	for res in result:
-		print(green.apply('\t' + res))
+		print(green.apply(f"\t{res}"))
 
 def list_collections():
 	if not logged_in:
