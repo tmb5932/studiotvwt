@@ -92,7 +92,7 @@ def generate_and_insert_users(already_inserted, num_users):
         print("Resources cleaned up successfully.")
 
 if __name__ == "__main__":
-    amount_to_add = 100
-    amount_already_in_database = 500
+    amount_to_add = 0
+    amount_already_in_database =  0
 
     generate_and_insert_users(amount_already_in_database, amount_to_add)

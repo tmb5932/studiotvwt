@@ -345,6 +345,28 @@ def userrates():
 	else:
 		print(red.apply("Failed to add rating."))
 
+
+
+def search_user():
+	global logged_in
+	assert logged_in, red.apply("You must be logged in to search for a user.")
+
+	while True:
+		input_chars = input("Enter the starting characters of the email to search ( type 'quit' to quit): ")
+		if input_chars.lower() == 'quit':
+			print("Search process canceled.")
+			return
+
+		users = GET("user", col="email", criteria=f"email LIKE '{input_chars}%'", limit= None)
+		if not users:
+			print(red.apply("No emails Try with a different input"))
+			continue
+		else:
+			print(green.apply("Emails found:"))
+			for user in users:
+				print("\t" + user[0])
+
+
 def help_message():
 	print(blue.apply("                Studio TVWT Commands"))
 	print(blue.apply("----------------------------------------------------------------"))
@@ -362,6 +384,7 @@ def help_message():
 	print(blue.apply("FOLLOW                follow another user"))
 	print(blue.apply("UNFOLLOW              unfollow another user"))
 	print(blue.apply("QUIT/EXIT             quit the program"))
+	print(blue.apply("SEARCH USER           search users by email"))
 	print(blue.apply("----------------------------------------------------------------"))
 
 def main():
@@ -443,6 +466,8 @@ def main():
 						unfollow()
 					elif command == 'rate movie':
 						userrates()
+					elif command == "search user":
+						search_user()
 					elif command == 'quit' or command == 'exit':
 						# close connection
 						curs.close()
