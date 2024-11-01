@@ -20,11 +20,12 @@ logged_in = False # global login instance
 logged_in_as = None
 
 # SELECT * [from *]
-def GET(table, col='*', criteria=None, limit=None):
+def GET(table, col='*', criteria=None, limit=None, sort_col=None, sort_by='DESC'):
 	try:
 		query = f"SELECT {col} FROM \"{table}\""
 		if criteria: query += f" WHERE {criteria}"
 		if limit: query += f" LIMIT {limit}"
+		if sort_col: query += f" ORDER BY {sort_col} { sort_by }"
 		curs.execute(query)
 		return curs.fetchall()
 	except Exception as e:
@@ -96,15 +97,15 @@ def create_account():
 	else:
 		print(red.apply("User creation failed."))
 
-def login(email, password_guess):
+def login(email_username, password_guess):
 	# check if logged in
 	global logged_in
 	global logged_in_as
 	if logged_in: print(f"Already logged in.")
 
 	# check if user exists
-	email_exists = GET("user", criteria=f"email = '{email}'")
-	username_exists = GET("user", criteria=f"email = '{email}'")
+	email_exists = GET("user", criteria=f"email = '{email_username}'")
+	username_exists = GET("user", criteria=f"username = '{email_username}'")
 
 	print(green.apply("Logging in..."))
 
@@ -118,8 +119,8 @@ def login(email, password_guess):
 		userid, username, password = username_exists[0][0], username_exists[0][1], username_exists[0][2]
 	# check password
 	if valid_password(password, password_guess):
-		timed = datetime.now()
-		updated = UPDATE("user", values=f"lastaccessdate = '{timed}'", criteria=f"userid = {userid}")
+		time = datetime.now()
+		updated = UPDATE("user", values=f"lastaccessdate = '{time}'", criteria=f"userid = {userid}")
 		if updated:
 			logged_in = True
 			if email_exists:
@@ -137,7 +138,7 @@ def logout():
 	# check if logged in
 	global logged_in
 	global logged_in_as
-	if (logged_in == True):
+	if logged_in:
 		print(green.apply("Logged out."))
 		logged_in_as = None
 		logged_in = False
@@ -146,21 +147,31 @@ def logout():
 		print(red.apply("Not logged in."))
 		return False
 
-def create_collection(collection_name):
+def create_collection():
 	global logged_in
 	global logged_in_as
-	assert logged_in, red.apply("You must be signed in to create a collection.")
 
-	maxd = GET("collection", col=f"MAX(collectionid)")
+	if not logged_in:
+		print(red.apply("\tYou must be signed in to create a collection."))
+		return False
+
+	collection_name = input(blue.apply("\tEnter the Collection Name: "))
+
+	name_exists = GET("collection", criteria=f"name = '{collection_name}' and userid = '{logged_in_as}'")
+	if name_exists:
+		print(red.apply(f"Collection '{collection_name}' already exists."))
+		return
+
+	maxid = GET("collection", col=f"MAX(collectionid)")
 	entry = {
 		"userid": logged_in_as,
-		"collectionid": str(int(maxd[0][0]) + 1),
+		"collectionid": str(int(maxid[0][0]) + 1),
 		"name": collection_name,
 	}
 
 	post_result = POST("collection", entry)
-	if (post_result):
-		print(green.apply(f"Collection {collection_name} created."))
+	if post_result:
+		print(green.apply(f"Collection '{collection_name}' created."))
 	else:
 		print(red.apply("Collection creation failed."))
 
@@ -201,33 +212,45 @@ def delete_collection(collection_name):
 #TODO: print [name, number_movies, total_movie_length]
 def list_collections(username, limit=50):
 	userid = GET("user", criteria="username = '{username}'")
+
+	self_collections = input(blue.apply("\tDo you want to see your collections(Y), or another users collections(N): ")).lower()
+
+	if self_collections == 'y':
+		if not logged_in:
+			print(red.apply("You must be logged in to search movies."))
+			return False
+		list_collections(logged_in_as)
+	elif self_collections == 'n':
+		name = input(blue.apply("\tEnter the User's Username: "))
+		list_collections(name)
+
 	collections = GET("collection", criteria="userid = '{userid}'", limit=50)
+
 	print([collection for collection in collections[0]])
 
-def search_movies(query, criteria):
+def search_movies():
 	global logged_in
 	global logged_in_as
-	assert logged_in, red.apply("You must be logged in to search movies.")
 
 	# search by name, release date, cast members, studio, or genre
 	results = None
-	if (query == 'name'):
-		results = GET("movie", criteria=f"title = '{criteria}'")
-	elif (query == 'release_date'):
-		movie_ids = GET("moviereleases", col="movieid", criteria=f"releasedate = '{criteria}'")
-		#TODO: Finish
-		pass
-	elif (query == 'cast_members'):
-		#TODO: Finish
-		pass
-	elif (query == 'studio'):
-		#TODO: Finish
-		pass
-	elif (query == 'genre'):
-		#TODO: Finish
-		pass
-	else:
-		print(red.apply("You must use either name, release_date, cast_members, studio, or genre for your query."))
+
+	method = input(blue.apply("\tSearch by Movie Name(1), Release Date(2), Cast Member(3), Studio(4), or Genre(5): "))
+	if method == 1:
+		name = input(blue.apply("\tEnter the Movie Name: "))
+		results = GET("movie", criteria=f"title = '{name}'")
+	elif method == 2:
+		date = None
+		while date != "asc" and date != "desc":
+			date = input(blue.apply("\tSort by Release Date Ascending (ASC) or Descending (DESC): ")).lower
+
+		results = GET("movie", sort_col='', sort_by="asc")
+	elif method == 3:
+		cast = input(blue.apply("\tEnter the Cast Member Name: "))
+		search_movies(cast, cast)
+	elif method == 4:
+		date = input(blue.apply("\tSort by Release Date Ascending (ASC) or Descending (DESC): "))
+
 	return results
 
 def add_movie(collection, movie):
@@ -296,7 +319,6 @@ def userrates():
 			return
 		movie = GET("movie", criteria=f"title = '{movie_name}'")
 
-
 	# Loop until a valid rating
 	while rating not in [1, 2, 3, 4, 5]:
 		print(red.apply("Invalid rating. Please enter {1,2,3,4 or 5}"))
@@ -309,7 +331,7 @@ def userrates():
 	movie_id = movie[0][0]
 
 	# Create entry
-	entry = { "movieId": movie_id, "userId": logged_in_as,"rating": rating }
+	entry = { "movieId": movie_id, "userId": logged_in_as, "rating": rating }
 
 	# Insert the rating
 	post_result = POST("userrates", entry)
@@ -373,42 +395,15 @@ def main():
 					elif command == 'create account':
 						create_account()
 					elif command == 'login':
-						email = input(blue.apply("\tEnter your Email or Username: "))
+						email_username = input(blue.apply("\tEnter your Email or Username: "))
 						password = input(blue.apply("\tEnter your Password: "))
-						login(email, password)
+						login(email_username, password)
 					elif command == 'logout':
 						logout()
 					elif command == 'create collection':
-						if not logged_in:
-							print(red.apply(f"\tYou are not logged in."))
-							continue
-						name = input(blue.apply("\tEnter the Collection Name: "))
-						create_collection(name)
+						create_collection()
 					elif command == 'list collections':
-						self_collections = input(blue.apply("\tDo you want to see your collections(Y) or others collections(N): ")).lower()
-						if self_collections == 'y':
-							if not logged_in:
-								print(red.apply(f"\tYou are not logged in."))
-								continue
-							list_collections(logged_in_as)
-						elif self_collections == 'n':
-							name = input(blue.apply("\tEnter the User's Username: "))
-							list_collections(name)
-					elif command == 'search movies':
-						searchby = input(blue.apply(
-							"\tSearch by Movie Name(1), Release Date(2), Cast Member(3), Studio(4), or Genre(5): "))
-						if searchby == 1:
-							name = input(blue.apply("\tEnter the Movie Name: "))
-							search_movies(name, name)
-						elif searchby == 2:
-							date = input(blue.apply("\tSort by Release Date Ascending (ASC) or Descending (DESC): "))
-							search_movies(date, date)
-						elif searchby == 3:
-							cast = input(blue.apply("\tEnter the Cast Member Name: "))
-							search_movies(cast, cast)
-						elif searchby == 4:
-							date = input(blue.apply("\tSort by Release Date Ascending (ASC) or Descending (DESC): "))
-							search_movies(date, date)
+						search_movies()
 					elif command == 'add movie':
 						if not logged_in:
 							print(red.apply(f"\tYou are not logged in."))
