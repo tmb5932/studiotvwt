@@ -181,7 +181,10 @@ def create_collection():
 def edit_collection(old_collection_name, new_collection_name):
 	global logged_in
 	global logged_in_as
-	assert logged_in, red.apply("You must be signed in to create a collection.")
+	if not logged_in:
+		print(red.apply("\tYou must be signed in to create a collection."))
+		return False
+
 	criteria = f"name = '{old_collection_name}' AND userid = {logged_in_as}"
 	result = GET("collection", "name", criteria, limit=1)
 	if result:
@@ -198,7 +201,10 @@ def edit_collection(old_collection_name, new_collection_name):
 def delete_collection(collection_name):
 	global logged_in
 	global logged_in_as
-	assert logged_in, red.apply("You must be logged in to delete a collection.")
+	if not logged_in:
+		print(red.apply("\tYou must be signed in to create a collection."))
+		return False
+
 	collection = GET("collection", col="userid", criteria=f"userid = '{logged_in_as}' AND name = '{collection_name}'")
 	if collection:
 		try:
@@ -285,10 +291,12 @@ def add_to_collection():
 def remove_from_collection():
 	pass
 
-def follow(followed_email):
+def follow():
 	global logged_in
 	global logged_in_as
-	assert logged_in, red.apply("You must be logged in to follow a user.")
+	if not logged_in:
+		print(red.apply("\tYou must be signed in to create a collection."))
+		return False
 
 	while True:
 		followed_email = input("Enter the email of the user to follow (or type 'q' to quit): ")
@@ -318,25 +326,38 @@ def follow(followed_email):
 			print(red.apply("You are already following this user."))
 			return
 
-def unfollow(followed):
-	global logged_in
-	global logged_in_as
-	assert logged_in, red.apply("You must be logged in to unfollow a user.")
-	followed_user = GET("user", col="userid", criteria=f"email = '{followed}'")
-	if followed_user:
-		followedid = followed_user[0][0]
-		try:
-			query = f"DELETE FROM userfollows WHERE followerid = %s AND followedid = %s"
-			curs.execute(query, (logged_in_as, followedid))
-			conn.commit()
-			print(green.apply(f"Unfollowed {followed}."))
-		except Exception as e:
-			print(red.apply(f"Failed to unfollow {followed}."))
+def unfollow():
+		global logged_in
+		global logged_in_as
+		assert logged_in, red.apply("You must be logged in to unfollow a user.")
+
+		while True:
+			followed_email = input("Enter the email of the user to unfollow (or type 'q' to quit): ")
+			if followed_email.lower() == 'q':
+				print("Unfollow process canceled.")
+				return
+
+			followed_user = GET("user", col="userid", criteria=f"email = '{followed_email}'")
+			if not followed_user:
+				print(f"User {followed_email} does not exist.")
+				continue
+
+			followedid = followed_user[0][0]
+			try:
+				query = f"DELETE FROM userfollows WHERE followerid = %s AND followedid = %s"
+				curs.execute(query, (logged_in_as, followedid))
+				conn.commit()
+				print(green.apply(f"Unfollowed {followed_email}."))
+			except Exception as e:
+				print(red.apply(f"Failed to unfollow {followed_email}."))
+			return
 
 
 def userrates():
 	global logged_in, logged_in_as
-	assert logged_in, red.apply("You must be logged in to rate a movie.")
+	if not logged_in:
+		print(red.apply("\tYou must be signed in to create a collection."))
+		return False
 
 	# prompt
 	movie_name = input("Enter the movie name: ")
@@ -374,11 +395,13 @@ def userrates():
 	else:
 		print(red.apply("Failed to add rating."))
 
-LOGI
+
 
 def search_user():
 	global logged_in
-	assert logged_in, red.apply("You must be logged in to search for a user.")
+	if not logged_in:
+		print(red.apply("\tYou must be signed in to create a collection."))
+		return False
 
 	while True:
 		input_chars = input("Enter the starting characters of the email to search ( type 'quit' to quit): ")
@@ -483,8 +506,7 @@ def main():
 						if not logged_in:
 							print(red.apply(f"\tYou are not logged in."))
 							continue
-						name = input(blue.apply("\tEnter the Username to Follow: "))
-						follow(name)
+						follow()
 					elif command == 'unfollow':
 						if not logged_in:
 							print(red.apply(f"\tYou are not logged in."))
