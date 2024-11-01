@@ -168,7 +168,7 @@ def create_collection():
 		print(red.apply(f"Collection '{collection_name}' already exists."))
 		return
 
-	maxid = GET("collection", col=f"MAX(collectionid)")
+	maxid = GET("collection", col=f"MAX(collectionid)", criteria=f"userid = '{logged_in_as}'")
 	entry = {
 		"userid": logged_in_as,
 		"collectionid": str(int(maxid[0][0]) + 1),
@@ -273,10 +273,11 @@ def list_collections():
 	if not collections:
 		print(green.apply("\tYou have no collections."))
 		return
-	for collection in collections:
-		hours = collection[2] // 60
-		minutes = collection[2] % 60
-		print(green.apply(f"'{collection[0]}', {len(collection)} movies, {hours} hours and {minutes} minutes of total runtime"))
+	for col in collections:
+		hours = col[2] // 60
+		minutes = col[2] % 60
+		print(green.apply(f"'{col[0]}', {col[1]} movies, {hours} hours and {minutes} minutes of total runtime"))
+
 # search by name, release date, cast members, studio, or genre
 def search_movies():
 	global logged_in
