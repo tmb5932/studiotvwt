@@ -314,29 +314,36 @@ def search_movies():
 		while date != "asc" and date != "desc":
 			date = (input(blue.apply("\tSort by Release Date Ascending (ASC) or Descending (DESC): "))).lower()
 
-		result = GET("movie", col=columns + ", moviereleases.releasedate", join= "moviereleases ON movie.movieid = moviereleases.movieid JOIN userrates on userrates.movieid = movie.movieid", sort_col='moviereleases.releasedate', sort_by=date, group_by="movie.movieid", limit=25)
-		print(blue.apply(f"\tShowing 25 movies in {date.capitalize()} order."))
-		print(green.apply("\tNAME, RUNTIME, MPAA, AVG USER RATING, RELEASEDATE"))
+		result = GET("movie", col=columns + ", moviereleases.releasedate", join= "moviereleases ON movie.movieid = moviereleases.movieid JOIN userrates on userrates.movieid = movie.movieid", sort_col='moviereleases.releasedate', sort_by=date, group_by="movie.movieid, moviereleases.releasedate", limit=25)
+		if result:
+			print(blue.apply(f"\tShowing 25 movies in {date.capitalize()} order."))
+			print(green.apply("\tNAME, RUNTIME, MPAA, AVG USER RATING, RELEASEDATE"))
 
 	elif method == 3:
 		cast_first = input(blue.apply("\tEnter the Cast Member First Name or Leave Empty: "))
 		cast_last = input(blue.apply("\tEnter the Cast Member Last Name or Leave Empty: "))
 
-		result = GET("movie", col=columns + ", productionteam.firstname, productionteam.lastname", join="movieactsin ON movie.movieid = movieactsin.movieid JOIN productionteam ON movieactsin.productionid = productionteam.productionid JOIN userrates on userrates.movieid = movie.movieid", criteria=f"productionteam.firstname LIKE '%{cast_first}%' AND productionteam.lastname LIKE '%{cast_last}%'", group_by="movie.movieid", limit=25)
-		print(blue.apply(f"\tShowing up to 25 movies with cast member '{cast_first} {cast_last}'."))
-		print(green.apply("\tNAME, RUNTIME, MPAA, AVG USER RATING, CAST FIRST NAME, CAST LAST NAME"))
+		result = GET("movie", col=columns + ", productionteam.firstname, productionteam.lastname", join="movieactsin ON movie.movieid = movieactsin.movieid JOIN productionteam ON movieactsin.productionid = productionteam.productionid JOIN userrates on userrates.movieid = movie.movieid", criteria=f"productionteam.firstname LIKE '%{cast_first}%' AND productionteam.lastname LIKE '%{cast_last}%'", group_by="movie.movieid, productionteam.lastname, productionteam.firstname", limit=25)
+		if result:
+			print(blue.apply(f"\tShowing up to 25 movies with cast member '{cast_first} {cast_last}'."))
+			print(green.apply("\tNAME, RUNTIME, MPAA, AVG USER RATING, CAST FIRST NAME, CAST LAST NAME"))
 
 	elif method == 4:
 		studio = input(blue.apply("\tEnter Studio Name: "))
-		result = GET("movie", col=columns + ", studio.name", join=f"movieproduces ON movie.movieid = movieproduces.movieid JOIN userrates on userrates.movieid = movie.movieid JOIN studio ON movieproduces.studioid = studio.studioid", criteria=f"studio.name LIKE '%{studio}%'", group_by="movie.movieid")
-		print(blue.apply(f"\tShowing all movies from {studio}."))
-		print(green.apply("\tNAME, RUNTIME, MPAA, AVG USER RATING, STUDIO"))
+		result = GET("movie", col=columns + ", studio.name", join=f"movieproduces ON movie.movieid = movieproduces.movieid JOIN userrates on userrates.movieid = movie.movieid JOIN studio ON movieproduces.studioid = studio.studioid", criteria=f"studio.name LIKE '%{studio}%'", group_by="movie.movieid, studio.name")
+		if result:
+			print(blue.apply(f"\tShowing all movies from {studio}."))
+			print(green.apply("\tNAME, RUNTIME, MPAA, AVG USER RATING, STUDIO"))
 
 	elif method == 5:
 		genre = input(blue.apply("\tEnter Genre: "))
-		result = GET("movie", col=columns + ", genre.name", join=f"moviegenre ON movie.movieid = moviegenre.movieid JOIN genre ON moviegenre.genreid = genre.genreid JOIN userrates on userrates.movieid = movie.movieid", criteria=f"genre.name LIKE '%{genre}%'", group_by="movie.movieid", limit=25)
-		print(blue.apply(f"\tShowing up to 25 movies in {genre}."))
-		print(green.apply("\tNAME, RUNTIME, MPAA, AVG USER RATING, GENRE"))
+		result = GET("movie", col=columns + ", genre.name", join=f"moviegenre ON movie.movieid = moviegenre.movieid JOIN genre ON moviegenre.genreid = genre.genreid JOIN userrates on userrates.movieid = movie.movieid", criteria=f"genre.name LIKE '%{genre}%'", group_by="movie.movieid, genre.name", limit=25)
+		if result:
+			print(blue.apply(f"\tShowing up to 25 movies in {genre}."))
+			print(green.apply("\tNAME, RUNTIME, MPAA, AVG USER RATING, GENRE"))
+
+	if not result:
+		print(green.apply("\tNo results to display!"))
 
 	for res in result:
 		res = list(res)
