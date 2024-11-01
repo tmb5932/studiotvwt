@@ -10,6 +10,8 @@ Author: Vladislav Usatii (vau3677@g.rit.edu)
 import sys, os, random
 import argparse
 from datetime import datetime
+from re import search
+
 from dotenv import load_dotenv
 from sshtunnel import SSHTunnelForwarder
 import psycopg2
@@ -143,7 +145,7 @@ def create_collection(collection_name):
 	}
 
 	post_result = POST("collection", entry)
-	if (post_result): 
+	if (post_result):
 		print(green.apply(f"Collection {collection_name} created."))
 	else:
 		print(red.apply("Collection creation failed."))
@@ -183,7 +185,8 @@ def delete_collection(collection_name):
 
 
 #TODO: print [name, number_movies, total_movie_length]
-def list_collections(userid, limit=50):
+def list_collections(username, limit=50):
+	userid = GET("user", criteria="username = '{username}'")
 	collections = GET("collection", criteria="userid = '{userid}'", limit=50)
 	print([collection for collection in collections[0]])
 
@@ -219,13 +222,13 @@ def add_movie(collection, movie):
 def delete_movie(collection, movie):
 	pass
 
-def follow(followed_email):
+def follow(followed_username):
 	global logged_in
 	global logged_in_as
 	assert logged_in, red.apply("You must be logged in to follow a user.")
-	followed_user = GET("user", col="userid", criteria=f"email = '{followed_email}'")
+	followed_user = GET("user", col="userid", criteria=f"username = '{followed_username}'")
 	if not followed_user:
-		print(f"Email {followed_email} does not exist.")
+		print(f"User {followed_username} does not exist.")
 		return
 	followedid = followed_user[0][0]
 	query = {
@@ -259,24 +262,25 @@ def unfollow(followed):
 		except Exception as e:
 			print(red.apply(f"Failed to unfollow {followed}."))
 
-
-
+def help_message():
+	print(blue.apply("                Studio TVWT Commands"))
+	print(blue.apply("----------------------------------------------------------------"))
+	print(blue.apply("HELP                  show this help message and exit"))
+	print(blue.apply("CREATE ACCOUNT        create new account"))
+	print(blue.apply("LOGIN                 log in to your account"))
+	print(blue.apply("LOGOUT                log out of your account"))
+	print(blue.apply("CREATE COLLECTION     create new collection"))
+	print(blue.apply("LIST COLLECTIONS      lists a user's (or your own) collections"))
+	print(blue.apply("EDIT COLLECTION       change your collection's name"))
+	print(blue.apply("DELETE COLLECTION     delete one of your collections"))
+	print(blue.apply("SEARCH MOVIES         search movies"))
+	print(blue.apply("ADD MOVIE             add a movie to one of your collections"))
+	print(blue.apply("DELETE MOVIE          delete a movie from one of your collections"))
+	print(blue.apply("FOLLOW                follow another user"))
+	print(blue.apply("UNFOLLOW              unfollow another user"))
+	print(blue.apply("QUIT/EXIT             quit the program"))
+	print(blue.apply("----------------------------------------------------------------"))
 def main():
-	parser = CustomArgumentParser(description="Movie Database Application") # cmds
-	parser.add_argument('--create-account', help="create new account", nargs=5, metavar=('EMAIL', 'PASSWORD', 'USERNAME', 'FIRST', 'LAST'))
-	parser.add_argument('--login', help="log in to your account", nargs=2, metavar=('EMAIL', 'PASSWORD'))
-	parser.add_argument('--logout', help="log out of your account", action='store_true')
-	parser.add_argument('--create-collection', help="create new collection", nargs=1, metavar=('COLLECTION'))
-	parser.add_argument('--edit-collection', help="edit your collection name", nargs=2, metavar=('COLLECTION', 'NEWNAME'))
-	parser.add_argument('--list-collections', help="list collections", nargs=1, metavar=('USERNAME'))
-	parser.add_argument('--search-movies', help="search movies", nargs=2, metavar=('QUERY', 'CRITERIA'))
-	parser.add_argument('--add-movie', help="add movie to collection", nargs=2, metavar=('COLLECTION', 'MOVIE'))
-	parser.add_argument('--delete-movie',  help="delete movie from collection", nargs=2, metavar=('COLLECTION', 'MOVIE'))
-	parser.add_argument('--delete-collection', help="delete collection", nargs=1, metavar=('COLLECTION'))
-	parser.add_argument('--follow', help="follow user", nargs=1, metavar=('EMAIL'))
-	parser.add_argument('--unfollow', help="unfollow user", nargs=1, metavar=('EMAIL'))
-	parser.add_argument('--terminate', help="terminate program", action='store_true')
-
 	load_dotenv() # env
 
 	global conn, curs
@@ -303,34 +307,97 @@ def main():
 
 			# main loop
 			while True:
+				print(blue.apply("Enter a command or type HELP"))
 				user_input = input("> ")
 				if user_input.strip():
-					args = parser.parse_args(user_input.split())
-					if args.create_account:
-						create_account(*args.create_account)
-					elif args.login:
-						login(*args.login)
-					elif args.logout:
+					command = user_input.strip().lower()
+					if command == "help":
+						help_message()
+					elif command == 'create account':
+						email = input(blue.apply("Enter your Email: "))
+						username = input(blue.apply("\tEnter a username: "))
+						while not username:
+							print(red.apply(f"\tUsername cannot be empty."))
+							username = input(blue.apply("\tEnter a username: "))
+						password = input(blue.apply("\tEnter a password: "))
+
+						while not password or len(password) < 6:
+							print(red.apply(f"\tPassword must be at least 6 characters"))
+							password = input(blue.apply("\tEnter a password: "))
+
+						first = input(blue.apply("\tEnter your first name: "))
+						last = input(blue.apply("\tEnter your last name: "))
+						create_account(email, username, password, first, last)
+					elif command == 'login':
+						email = input(blue.apply("\tEnter your Email or Username: "))
+						password = input(blue.apply("\tEnter your Password: "))
+						login(email, password)
+					elif command == 'logout':
 						logout()
-					elif args.create_collection:
-						create_collection(*args.create_collection)
-					elif args.list_collections:
-						list_collections(*args.list_collections)
-					elif args.search_movies:
-						search_movies(*args.search_movies)
-					elif args.add_movie:
-						add_movie(*args.add_movie)
-					elif args.edit_collection:
-						edit_collection(*args.edit_collection)
-					elif args.delete_collection:
-						delete_collection(*args.delete_collection)
-					elif args.delete_movie:
-						delete_movie(*args.delete_movie)
-					elif args.follow:
-						follow(*args.follow)
-					elif args.unfollow:
-						unfollow(*args.unfollow)
-					elif args.terminate:
+					elif command == 'create collection':
+						if not logged_in:
+							print(red.apply(f"\tYou are not logged in."))
+							continue
+						name = input(blue.apply("\tEnter the Collection Name: "))
+						create_collection(name)
+					elif command == 'list collections':
+						self_collections = input(blue.apply("\tDo you want to see your collections(Y) or others collections(N): ")).lower()
+						if self_collections == 'y':
+							if not logged_in:
+								print(red.apply(f"\tYou are not logged in."))
+								continue
+							list_collections(logged_in_as)
+						elif self_collections == 'n':
+							name = input(blue.apply("\tEnter the User's Username: "))
+							list_collections(name)
+					elif command == 'search movies':
+						searchby = input(blue.apply(
+							"\tSearch by Movie Name(1), Release Date(2), Cast Member(3), Studio(4), or Genre(5): "))
+						if searchby == 1:
+							name = input(blue.apply("\tEnter the Movie Name: "))
+							search_movies(name, name)
+						elif searchby == 2:
+							date = input(blue.apply("\tSort by Release Date Ascending (ASC) or Descending (DESC): "))
+							search_movies(date, date)
+						elif searchby == 3:
+							cast = input(blue.apply("\tEnter the Cast Member Name: "))
+							search_movies(cast, cast)
+						elif searchby == 4:
+							date = input(blue.apply("\tSort by Release Date Ascending (ASC) or Descending (DESC): "))
+							search_movies(date, date)
+					elif command == 'add movie':
+						if not logged_in:
+							print(red.apply(f"\tYou are not logged in."))
+							continue
+						collection = input(blue.apply("\tEnter Collection Name to Add to: "))
+						movie = input(blue.apply("\tEnter Movie Name to Add: "))
+						add_movie(collection, movie)
+					elif command == 'edit collection':
+						if not logged_in:
+							print(red.apply(f"\tYou are not logged in."))
+							continue
+						old_name = input(blue.apply("\tEnter the Collection Name to Edit: "))
+						new_name = input(blue.apply("\tEnter the New Collection Name: "))
+						edit_collection(old_name, new_name)
+					elif command == 'delete collection':
+						name = input(blue.apply("\tEnter the Collection Name to Delete: "))
+						delete_collection(name)
+					elif command == 'delete movie':
+						collection = input(blue.apply("\tEnter the Collection Name to Remove From: "))
+						movie = input(blue.apply("\tEnter the Movie Name to Remove: "))
+						delete_movie(collection, movie)
+					elif command == 'follow':
+						if not logged_in:
+							print(red.apply(f"\tYou are not logged in."))
+							continue
+						name = input(blue.apply("\tEnter the Username to Follow: "))
+						follow(name)
+					elif command == 'unfollow':
+						if not logged_in:
+							print(red.apply(f"\tYou are not logged in."))
+							continue
+						unfollow()
+					elif command == 'quit' or command == 'exit':
 						# close connection
 						curs.close()
 						conn.close()
@@ -340,4 +407,3 @@ def main():
 
 if __name__ == "__main__":
 	main()
-
