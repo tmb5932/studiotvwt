@@ -524,22 +524,22 @@ def watch():
     global logged_in, logged_in_as
     if not logged_in:
         print(red.apply("\tYou must be signed in to watch a movie or collection."))
-        return
+        return False
 
     while True:
-        media_type = input('Watch a single Movie or Collection? (input "movie" or "collection"): ')
+        media_type = input('Watch a single Movie or Collection? (input "m" or "c"): ')
         if media_type.lower() == 'q':
             print("Watch process canceled.")
             return
 
-        if media_type not in ["movie", "collection"]:
+        if media_type not in ["m", "c"]:
             print("Invalid input. Please enter 'movie' or 'collection'.")
         else:
             break
 
     watch_date = datetime.now().isoformat(' ', 'microseconds')
 
-    if media_type == "movie":
+    if media_type == "m":
         while True:
             media_name = input("\tEnter the movie name ( type 'q' to quit): ")
             if media_name.lower() == 'q':
@@ -554,7 +554,7 @@ def watch():
                 media_id = media[0][0]
                 break
 
-    elif media_type == "collection":
+    elif media_type == "c":
         while True:
             media_name = input("\tEnter the collection name (or type 'q' to quit): ")
             if media_name.lower() == 'q':
@@ -566,12 +566,12 @@ def watch():
                 print(red.apply("Collection not found. Please enter a proper name (check for typos)."))
                 continue
             else:
-                collection_id = media[0][0]
-                movies = GET("movie", col="movieId", criteria=f"collectionId = {collection_id}")
+                collection_id = media[0][1]
+                movies = GET("collectionstores", col="movieid", criteria=f"collectionid = {collection_id}")
 
                 for movie in movies:
                     movie_id = movie[0]
-                    movie_name = movie[1]
+                    movie_name = GET("movie", col="title", criteria=f"movieId = {movie_id}")
                     entry = {"movieId": movie_id, "userId": logged_in_as, "watchDate": watch_date}
                     post_result = POST("userwatches", entry)
                     print(green.apply(f"Movie marked as watched: {movie_name}."))
