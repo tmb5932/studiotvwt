@@ -303,8 +303,12 @@ def search_movies():
 
 	result = []
 	columns = "movie.title, movie.runtime, movie.mpaa, avg(userrates.rating)"
-
-	method = int(input(blue.apply("\tSearch by Movie Title(1), Release Date(2), Cast Member(3), Studio(4), or Genre(5): ")))
+	method = -1
+	while method not in ['1', '2', '3', '4', '5']:
+		method = input(blue.apply("\tSearch by Movie Title(1), Release Date(2), Cast Member(3), Studio(4), or Genre(5): "))
+		if method == "q":
+			return
+	method = int(method)
 	if method == 1:
 		name = input(blue.apply("\tEnter the Movie Title: "))
 		result = GET("movie", join="userrates on userrates.movieid = movie.movieid", col=columns, criteria=f"title LIKE '%{name}%'", group_by="movie.movieid", limit=25)
@@ -416,7 +420,7 @@ def remove_from_collection():
 		if not movie_exists:
 			print(red.apply(f"\tNo movie exists with name {movie}!"))
 
-	DELETE("collectionstores", criteria=f"collectionid = '{collection_exists[0][1]} and userid = {logged_in_as} and movieid = {movie_exists[0][0]}'")
+	DELETE("collectionstores", criteria=f"collectionid = '{collection_exists[0][1]}' and userid = {logged_in_as} and movieid = {movie_exists[0][0]}")
 	print(green.apply(f"\tRemoved '{movie}' from collection '{collection}'."))
 
 def follow():
