@@ -1,7 +1,7 @@
 """
 
 main.py
-
+PDM Group 11: Studio TVWT
 Command line interface to control the Movies database.
 
 Author: Vladislav Usatii (vau3677@g.rit.edu)
@@ -18,7 +18,7 @@ from utils import *
 
 conn, curs = None, None  # global db instance
 logged_in = False # global login instance
-logged_in_as = None
+logged_in_as = None # global userid instance
 
 # SELECT * [from *]
 def GET(table, col='*', criteria=None, limit=None, join=None, sort_col=None, sort_by='DESC', group_by=None):
@@ -285,7 +285,7 @@ def list_collections():
 	if not logged_in:
 		print(red.apply("\tYou must be logged in to list your collections."))
 		return
-	collections = GET("collection", "collection.name, count(collectionstores.movieid), sum(movie.runtime)", join="collectionstores on collectionstores.collectionid = collection.collectionid and collectionstores.userid = collection.userid JOIN movie on movie.movieid = collectionstores.movieid", criteria=f"collection.userid = '{logged_in_as}'",group_by="collection.name")
+	collections = GET("collection", "collection.name, count(collectionstores.movieid), sum(movie.runtime)", join="collectionstores on collectionstores.collectionid = collection.collectionid and collectionstores.userid = collection.userid JOIN movie on movie.movieid = collectionstores.movieid", criteria=f"collection.userid = '{logged_in_as}'",group_by="collection.name", sort_by="ASC", sort_col="collection.name")
 
 	if not collections:
 		print(green.apply("\tYou have no collections."))
