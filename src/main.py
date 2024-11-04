@@ -393,7 +393,7 @@ def search_movies():
 		cast = GET(table='productionteam', col="productionteam.firstname, productionteam.lastname", join="movieactsin ON productionteam.productionid = movieactsin.productionid", criteria=f'movieactsin.movieid = {res[7]}')
 		actors_str = ", ".join([f"{first} {last}" for first, last in cast])
 
-		print(green.apply(f"\t{res[0]}, [{actors_str}], {res[1]} {res[2]}, {res[3]}, {res[4]}, {res[5]} STARS, {res[6]}"))
+		print(green.apply(f"\t{res[0]}, [{actors_str}], {res[1]} {res[2]}, {res[3]} MIN, {res[4]}, {res[5]} STARS, {res[6]}"))
 
 
 def add_to_collection():
