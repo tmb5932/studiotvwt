@@ -13,7 +13,6 @@ from datetime import datetime
 
 import psycopg2
 from sshtunnel import SSHTunnelForwarder
-import math
 
 from utils import *
 
@@ -28,7 +27,11 @@ def GET(table, col='*', criteria=None, limit=None, join=None, sort_col=None, sor
 		if join: query += f" JOIN {join}"
 		if criteria: query += f" WHERE {criteria}"
 		if group_by: query += f" GROUP BY {group_by}"
-		if sort_col: query += f" ORDER BY {sort_col} { sort_by }"
+		# Apply sort direction to each column in sort_col
+		if sort_col:
+			# Split sort_col by commas, strip whitespace, and append sort_by
+			order_clause = ", ".join([f"{col.strip()} {sort_by}" for col in sort_col.split(",")])
+			query += f" ORDER BY {order_clause}"
 		if limit: query += f" LIMIT {limit}"
 		curs.execute(query)
 		return curs.fetchall()
@@ -304,96 +307,93 @@ def search_movies():
 	global logged_in
 	global logged_in_as
 
-	result = []
-	columns = "movie.title, productionteam.firstname, productionteam.lastname, movie.runtime, movie.mpaa, avg(userrates.rating), moviereleases.releasedate, movie.movieid"
+	columns = "movie.title, productionteam.firstname, productionteam.lastname, movie.runtime, movie.mpaa, avg(userrates.rating) AS avg_rating, moviereleases.releasedate, movie.movieid"
 
 	table = "movie"
-	join = f"userrates on userrates.movieid = movie.movieid JOIN moviereleases ON movie.movieid = moviereleases.movieid JOIN moviedirects ON moviedirects.movieid = movie.movieid JOIN productionteam ON moviedirects.productionid = productionteam.productionid"
+	join = f"userrates on userrates.movieid = movie.movieid JOIN moviereleases ON movie.movieid = moviereleases.movieid JOIN moviedirects ON moviedirects.movieid = movie.movieid JOIN productionteam ON moviedirects.productionid = productionteam.productionid JOIN moviegenre ON movie.movieid = moviegenre.movieid JOIN genre ON moviegenre.genreid = genre.genreid JOIN movieproduces ON movie.movieid = movieproduces.movieid JOIN studio ON movieproduces.studioid = studio.studioid"
 	criteria = ""
 	group_by = "movie.title, productionteam.firstname, productionteam.lastname, movie.runtime, movie.mpaa, moviereleases.releasedate, movie.movieid"
 	sort_col = ""
 
+	# Get user input to search by
 	title = input(blue.apply("\tEnter the Movie's Title: "))
 	release_date = ["year", "month", "day"]
 	release_date[0] = input(blue.apply("\tEnter the Release Year: "))
-	release_date[1] = input(blue.apply("\tEnter the Release Month: "))
+	release_date[1] = input(blue.apply("\tEnter the Release Month in number form (feb => 02): "))
 	release_date[2] = input(blue.apply("\tEnter the Release Day: "))
-	cast_member = ["first", "last"]
-	cast_member[0] = input(blue.apply("\tEnter the Cast Members First Name: "))
-	cast_member[1] = input(blue.apply("\tEnter the Cast Members Last Name: "))
+	cast_member = [input(blue.apply("\tEnter the Cast Members First Name: ")), input(blue.apply("\tEnter the Cast Members Last Name: "))]
 	studio = input(blue.apply("\tEnter the Studio Name: "))
 	genre = input(blue.apply("\tEnter the Genre Name: "))
 
-	if not title and not release_date and not studio and not genre:
-		print(blue.apply(f"\tShowing 25 recent movies."))
-		print(green.apply("\tTITLE, RUNTIME, MPAA, AVG USER RATING, RELEASE DATE"))
-		result = GET("movie", col=columns + ", moviereleases.releasedate",
-					 join="moviereleases ON movie.movieid = moviereleases.movieid JOIN userrates on userrates.movieid = movie.movieid",
-					 sort_col='moviereleases.releasedate', sort_by='asc',
-					 group_by="movie.movieid, moviereleases.releasedate", limit=25)
-		for res in result:
-			print(green.apply(f"\t{res}"))
-
-	# SORT ON movie name, studio, genre, released year
 	if title:
 		criteria += f"title LIKE '%{title}%' AND "
 	if release_date:
-		if release_date[0]:
+		if release_date[0] and release_date[0].isdigit():
 			criteria += f"EXTRACT(YEAR FROM moviereleases.releasedate) = {int(release_date[0])} AND "
-		if release_date[1]:
+		if release_date[1] and release_date[1].isdigit():
 			criteria += f"EXTRACT(MONTH FROM moviereleases.releasedate) = {int(release_date[1])} AND "
-		if release_date[2]:
+		if release_date[2] and release_date[2].isdigit():
 			criteria += f"EXTRACT(DAY FROM moviereleases.releasedate) = '{int(release_date[2])}' AND "
 	if cast_member:
-		criteria += f"productionteam.firstname LIKE '%{cast_member[0]}%' AND productionteam.lastname LIKE '%{cast_member[1]}%' AND "
+		join += " JOIN movieactsin ON movieactsin.movieid = movie.movieid JOIN productionteam AS cast_mem ON movieactsin.productionid = cast_mem.productionid"
+		if cast_member[0]:
+			criteria += f"cast_mem.firstname LIKE '%{cast_member[0]}%' AND "
+		if cast_member[1]:
+			criteria += f"cast_mem.lastname LIKE '%{cast_member[1]}%' AND "
 	if studio:
-		join += " JOIN movieproduces ON movie.movieid = movieproduces.movieid JOIN studio ON movieproduces.studioid = studio.studioid"
+		join += " "
 		criteria += f"studio.name LIKE '%{studio}%' AND "
 	if genre:
-		join += " JOIN moviegenre ON movie.movieid = moviegenre.movieid JOIN genre ON moviegenre.genreid = genre.genreid"
 		criteria += f"genre.name LIKE '%{genre}%' AND "
 	criteria = criteria.rstrip(" AND ") # this removes any hanging AND from the where clause
 
+	# Get input on how to sort
 	sorting = -1
-	while sorting not in ['1', '2', '3', '4']:
-		sorting = input(blue.apply("Sort by Movie Title(1), Studio(2), Genre(3), or Release Year(4)? "))
-		if sorting not in ['1', '2', '3', '4']:
+	while sorting not in ['1', '2', '3', '4', '5']:
+		sorting = input(blue.apply("Sort by Movie Title(1), Studio(2), Genre(3), Release Year(4) or Average User Rating (5)? "))
+		if sorting not in ['1', '2', '3', '4', '5']:
 			print(red.apply("\tInvalid Selection."))
 
+	# Get input on ascending or descending
 	sorting_by = 'default'
 	while sorting_by.lower() not in ['asc', 'desc']:
 		sorting_by = input(blue.apply("Sort by Ascending(ASC) or Descending(DESC)? "))
 		if sorting_by.lower() not in ['asc', 'desc']:
 			print(red.apply("\tInvalid Selection."))
 
+	# SORT ON movie name, studio, genre, released year
 	sort_by = sorting_by.lower()
-	if sorting == 2:
-		sort_col = "studio.name, "
-	if sorting == 3:
-		sort_col = "genre.name, "
-	if sorting == 4:
-		sort_col = "moviereleases.releasedate, movie.title"
 
-	if sorting != 4:
-		sort_col += "movie.title, moviereleases.releasedate"
+	if sorting == '2':
+		sort_col = "studio.name, movie.title"
+		group_by += ", studio.name"
+	elif sorting == '3':
+		sort_col = "genre.name, movie.title"
+		group_by += ", genre.name"
+	elif sorting == '4':
+		sort_col = "moviereleases.releasedate, movie.title"
+	elif sorting == '5':
+		sort_col = "avg_rating, movie.title"
+
+	sort_col = sort_col if sort_col else "movie.title, moviereleases.releasedate"
 
 	result = GET(table=table, join=join, col=columns,
 				 criteria=criteria, group_by=group_by, sort_by=sort_by, sort_col=sort_col, limit=25)
 	if result:
 		print(blue.apply(f"\tShowing up to 25 movies"))
 		print(green.apply("\tTITLE, CAST MEMBERS, DIRECTOR, RUNTIME, MPAA, AVG USER RATING, RELEASE DATE"))
-
-	if not result:
+	else:
 		print(green.apply("\tNo results to display!"))
+		return
 
 	for res in result:
 		res = list(res)
 		res[5] = round(float(res[5]), 2)
 		res = tuple(res)
 		cast = GET(table='productionteam', col="productionteam.firstname, productionteam.lastname", join="movieactsin ON productionteam.productionid = movieactsin.productionid", criteria=f'movieactsin.movieid = {res[7]}')
-		actors = [f"{first} {last}" for first, last in cast]
+		actors_str = ", ".join([f"{first} {last}" for first, last in cast])
 
-		print(green.apply(f"\t{res[0]}, {actors}, {res[1]} {res[2]}, {res[3]}, {res[4]}, {res[5]}, {res[6]}"))
+		print(green.apply(f"\t{res[0]}, [{actors_str}], {res[1]} {res[2]}, {res[3]}, {res[4]}, {res[5]} STARS, {res[6]}"))
 
 
 def add_to_collection():
