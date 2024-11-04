@@ -307,13 +307,17 @@ def search_movies():
 	global logged_in
 	global logged_in_as
 
-	columns = "movie.title, productionteam.firstname, productionteam.lastname, movie.runtime, movie.mpaa, avg(userrates.rating) AS avg_rating, moviereleases.releasedate, movie.movieid"
+	columns = ("movie.title, productionteam.firstname, productionteam.lastname, movie.runtime, movie.mpaa, "
+			   "avg(userrates.rating) AS avg_rating, moviereleases.releasedate, movie.movieid")
 
 	table = "movie"
-	join = f"userrates on userrates.movieid = movie.movieid JOIN moviereleases ON movie.movieid = moviereleases.movieid JOIN moviedirects ON moviedirects.movieid = movie.movieid JOIN productionteam ON moviedirects.productionid = productionteam.productionid JOIN moviegenre ON movie.movieid = moviegenre.movieid JOIN genre ON moviegenre.genreid = genre.genreid JOIN movieproduces ON movie.movieid = movieproduces.movieid JOIN studio ON movieproduces.studioid = studio.studioid"
+	join = """userrates on userrates.movieid = movie.movieid JOIN moviereleases ON movie.movieid = moviereleases.movieid JOIN 
+	moviedirects ON moviedirects.movieid = movie.movieid JOIN productionteam ON moviedirects.productionid = productionteam.productionid 
+	JOIN moviegenre ON movie.movieid = moviegenre.movieid JOIN genre ON moviegenre.genreid = genre.genreid JOIN movieproduces 
+	ON movie.movieid = movieproduces.movieid JOIN studio ON movieproduces.studioid = studio.studioid"""
 	criteria = ""
-	group_by = "movie.title, productionteam.firstname, productionteam.lastname, movie.runtime, movie.mpaa, moviereleases.releasedate, movie.movieid"
-	sort_col = ""
+	group_by = ("movie.title, productionteam.firstname, productionteam.lastname, movie.runtime, movie.mpaa, "
+				"moviereleases.releasedate, movie.movieid")
 
 	# Get user input to search by
 	title = input(blue.apply("\tEnter the Movie's Title: "))
@@ -394,7 +398,6 @@ def search_movies():
 		actors_str = ", ".join([f"{first} {last}" for first, last in cast])
 
 		print(green.apply(f"\t{res[0]}, [{actors_str}], {res[1]} {res[2]}, {res[3]} MIN, {res[4]}, {res[5]} STARS, {res[6]}"))
-
 
 def add_to_collection():
 	global logged_in
@@ -618,7 +621,7 @@ def watch():
 					movie_id = movie[0]
 					movie_name = GET("movie", col="title", criteria=f"movieId = {movie_id}")
 					entry = {"movieId": movie_id, "userId": logged_in_as, "watchDate": watch_date}
-					post_result = POST("userwatches", entry)
+					POST("userwatches", entry)
 					print(green.apply(f"\tMovie marked as watched: {movie_name}."))
 
 				print(green.apply(f"\tEntire collection '{media_name}' marked as watched."))
