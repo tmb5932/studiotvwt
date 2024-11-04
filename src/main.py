@@ -671,7 +671,7 @@ def help_message():
 	print(blue.apply("UNFOLLOW                 unfollow another user"))
 	print(blue.apply("SEARCH USERS             search users by email"))
 	print(blue.apply("RATE MOVIE               applies a rating to a movie"))
-	print(blue.apply("WATCH	                   watch a movie or all movies in a collection"))
+	print(blue.apply("WATCH                    watch a movie or all movies in a collection"))
 	print(blue.apply("QUIT/EXIT                quit the program"))
 	print(blue.apply("-----------------------------------------------------------------------------"))
 
