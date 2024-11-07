@@ -73,9 +73,15 @@ def DELETE(table, criteria):
 
 # Create a new user account
 def create_account():
+	global logged_in
+	global logged_in_as
+	if logged_in:
+		print(red.apply(f"\tAlready logged in."))
+		return
+
 	# Get account info from user
-	email = input(blue.apply("\tEnter your Email: "))
-	username = input(blue.apply("\tEnter a username: "))
+	email = (input(blue.apply("\tEnter your Email: "))).strip()
+	username = (input(blue.apply("\tEnter a username: "))).strip()
 	while not username:
 		print(red.apply(f"\tUsername cannot be empty."))
 		username = input(blue.apply("\tEnter a username: "))
@@ -97,6 +103,7 @@ def create_account():
 		return
 	if username_exists:
 		print(red.apply(f"\tAccount exists for {username}."))
+		return
 
 	entry = {
 		"userid": str(int(maxid[0][0]) + 1),
@@ -121,8 +128,9 @@ def login(email_username, password_guess):
 	# check if logged in
 	global logged_in
 	global logged_in_as
-	if logged_in: print(f"Already logged in.")
+	if logged_in: return
 
+	email_username = email_username.strip()
 	# check if user exists
 	email_exists = GET("user", col="userid, username, password", criteria=f"email = '{email_username}'")
 	username_exists = GET("user", col="userid, username, password", criteria=f"username = '{email_username}'")
@@ -160,7 +168,7 @@ def logout():
 	global logged_in
 	global logged_in_as
 	if logged_in:
-		print(green.apply("Logged out."))
+		print(green.apply("\tLogged out."))
 		logged_in_as = None
 		logged_in = False
 		return True
@@ -251,25 +259,25 @@ def delete_collection():
 
 # View a collection (own or another persons)
 def view_collection():
-	self_collections = None
-	while self_collections != 'y' and self_collections != 'n':
-		self_collections = input(blue.apply("\tDo you want to see your collections(Y), another users collections(N), or cancel(Q): ")).lower()
-		if self_collections == "q":
+	self_collections = 'default'
+	while self_collections.upper() != 'Y' and self_collections.upper() != 'N':
+		self_collections = input(blue.apply("\tDo you want to see your collections(Y), another users collections(N), or cancel(Q): "))
+		if self_collections.upper() == "Q":
 			return
-		if self_collections != 'y' and self_collections != 'n':
+		if self_collections.upper() != 'Y' and self_collections.upper() != 'N':
 			print(red.apply("\tInvalid Option."))
 
 	userid = None
-	if self_collections == 'y':
+	if self_collections.upper() == 'Y':
 		if not logged_in:
 			print(red.apply("\tYou must be logged in to view your collections."))
 			return
 		userid = logged_in_as
-	elif self_collections == 'n':
+	elif self_collections.upper() == 'N':
 		name_exists = []
 		while not name_exists:
-			name = input(blue.apply("\tEnter the User's Email or Username (or quit (q)): "))
-			if name == 'q':
+			name = (input(blue.apply("\tEnter the User's Email or Username (or quit (q)): "))).strip()
+			if name == 'Q' or name == 'q':
 				return
 			name_exists = GET("user", col="userid, username", criteria=f"email = '{name}'")
 			if not name_exists:
@@ -281,16 +289,16 @@ def view_collection():
 	collection_exists = []
 	while not collection_exists:
 		collection = input(blue.apply("\tEnter the Collection's Name (or quit(q)): "))
-		if collection == 'q':
+		if collection == 'q' or collection == 'Q':
 			return
 		collection_exists = GET("collection", col="userid, name", criteria=f"name = '{collection}' and userid = {userid}")
 		if not collection_exists:
 			print(red.apply(f"\tThe collection '{collection}' does not exist."))
 
-	result = GET("movie", col="title, runtime, mpaa", join=f"JOIN collectionstores ON movie.movieid = collectionstores.movieid JOIN collection ON collection.collectionid = collectionstores.collectionid", criteria=f"collection.name = '{collection}'")
+	result = GET("movie", col="title, runtime, mpaa", join=f"JOIN collectionstores ON movie.movieid = collectionstores.movieid JOIN collection ON collection.collectionid = collectionstores.collectionid and collection.userid = collectionstores.userid", criteria=f"collection.name = '{collection}' and collection.userid = {userid}")
 
 	if not result:
-		print(green.apply(f"\tCollection '{collection}' does is empty."))
+		print(green.apply(f"\tCollection '{collection}' has 0 movies, 0 hours and 0 minutes of total runtime."))
 		return
 	total_runtime = 0
 	for res in result:
@@ -298,7 +306,7 @@ def view_collection():
 
 	hour = total_runtime // 60
 	minute = total_runtime % 60
-	print(green.apply(f"\tCollection '{collection}' {len(result)} movies, {hour} hours and {minute} minutes of total runtime."))
+	print(green.apply(f"\tCollection '{collection}' has {len(result)} movies, {hour} hours and {minute} minutes of total runtime."))
 	print(green.apply(f"\tTITLE, RUNTIME, MPAA"))
 	for res in result:
 		print(green.apply(f"\t{res}"))
@@ -380,13 +388,13 @@ def search_movies():
 
 	# Get input on ascending or descending
 	sorting_by = 'default'
-	while sorting_by.lower() not in ['asc', 'desc']:
+	while sorting_by.upper() not in ['ASC', 'DESC']:
 		sorting_by = input(blue.apply("Sort by Ascending(ASC) or Descending(DESC)? "))
-		if sorting_by.lower() not in ['asc', 'desc']:
+		if sorting_by.upper() not in ['ASC', 'DESC']:
 			print(red.apply("\tInvalid Selection."))
 
 	# SORT ON movie name, studio, genre, released year
-	sort_by = sorting_by.lower()
+	sort_by = sorting_by.upper()
 
 	if sorting == '2':
 		sort_col = "studio.name, movie.title"
@@ -433,17 +441,17 @@ def add_to_collection():
 		collection = input(blue.apply("\tEnter full name of Collection to add the movie to (or quit(q)): "))
 		if collection == 'q':
 			return
-		coll_exists = GET("collection", col="name, userid", criteria=f"name = '{collection}' and userid = {logged_in_as}")
+		coll_exists = GET("collection", col="name, collectionid", criteria=f"name = '{collection}' and userid = {logged_in_as}")
 		if not coll_exists:
 			print(red.apply(f"\tYou have no collection with name '{collection}'!"))
 
 	while True:
 		movie = input(blue.apply("\tEnter full name of movie to add (or quit(q)): "))
-		if movie.lower() == 'q':
+		if movie.upper() == 'Q':
 			print("Movie addition process ended.")
 			break
 
-		movie_exists = GET("movie", col="movieid, collectionid", criteria=f"title = '{movie}'")
+		movie_exists = GET("movie", col="movieid, title", criteria=f"title = '{movie}'")
 		if not movie_exists:
 			print(red.apply(f"\tNo movie exists with name {movie}!"))
 			continue
@@ -495,14 +503,17 @@ def follow():
 		return
 
 	while True:
-		followed_email = input("Enter the email of the user to follow (or quit(q)): ")
+		followed_email = (input("Enter the email of the user to follow (or quit(q)): ")).strip()
 		if followed_email.lower() == 'q':
 			print("Follow process canceled.")
 			return
 
 		followed_user = GET("user", col="userid", criteria=f"email = '{followed_email}'")
 		if not followed_user:
-			print(f"User {followed_email} does not exist.")
+			print(red.apply(f"\tUser {followed_email} does not exist."))
+			continue
+		elif followed_user[0][0] == logged_in_as:
+			print(red.apply(f"\tYou cannot follow yourself."))
 			continue
 
 		followedid = followed_user[0][0]
@@ -510,7 +521,7 @@ def follow():
 			"followerid": logged_in_as,
 			"followedid": followedid
 		}
-		already_following = GET("userfollows", col="userid, username", criteria=f"followerid = {logged_in_as} AND followedid = {followedid}")
+		already_following = GET("userfollows", col="followerid, followedid", criteria=f"followerid = {logged_in_as} AND followedid = {followedid}")
 		if not already_following:
 			return_value = POST("userfollows", query)
 			if return_value:
@@ -531,7 +542,7 @@ def unfollow():
 			return
 
 		while True:
-			followed_email = input("Enter the email of the user to unfollow (or quit(q)): ")
+			followed_email = (input("Enter the email of the user to unfollow (or quit(q)): ")).strip()
 			if followed_email.lower() == 'q':
 				print("Unfollow process canceled.")
 				return
@@ -540,6 +551,12 @@ def unfollow():
 			if not followed_user:
 				print(f"User {followed_email} does not exist.")
 				continue
+
+			is_following = GET("userfollows", col="followerid, followedid",
+									criteria=f"followerid = {logged_in_as} AND followedid = {followedid}")
+			if not is_following:
+				print(red.apply(f"\tNot following {followed_email}."))
+				return
 
 			followedid = followed_user[0][0]
 			DELETE("userfollows", criteria=f"followerid = {logged_in_as} and followedid = {followedid}")
@@ -554,9 +571,9 @@ def userrates():
 
 	while True:
 		# Prompt for movie name
-		movie_name = input("\tEnter the movie name (or quit(q)): ")
-		if movie_name.lower() == 'q':
-			print("Rating process canceled.")
+		movie_name = input(blue.apply("\tEnter the movie name (or quit(q)): "))
+		if movie_name == 'q':
+			print(blue.apply("\tRating process canceled."))
 			return
 
 		# Check if movie exists
@@ -569,10 +586,16 @@ def userrates():
 
 		# Loop until a valid rating
 	while True:
-		rating = int(input("\tEnter your rating (1,2,3,4,5 or enter q to quit)): "))
-		if rating == 'q':
-			print("Rating process canceled.")
-			return
+		rating = 'default'
+		while rating not in ['1', '2', '3', '4', '5']:
+			rating = input(blue.apply("\tEnter your rating (1,2,3,4,5 or enter q to quit)): "))
+			if rating == 'q':
+				print("Rating process canceled.")
+				return
+
+			if rating not in ['1', '2', '3', '4', '5']:
+				print(red.apply("\tInvalid Rating."))
+		rating = int(rating)
 
 		if rating not in [1, 2, 3, 4, 5]:
 			print(red.apply("\tInvalid rating. Please enter {1,2,3,4,5}"))
@@ -602,11 +625,11 @@ def watch():
 
 	while True:
 		media_type = input('Watch a single Movie or Collection? (input "m" or "c"): ')
-		if media_type.lower() == 'q':
+		if media_type.upper() == 'Q':
 			print("Watch process canceled.")
 			return
 
-		if media_type not in ["m", "c"]:
+		if media_type.upper() not in ["M", "C"]:
 			print("Invalid input. Please enter 'movie' or 'collection'.")
 		else:
 			break
@@ -616,7 +639,7 @@ def watch():
 	if media_type == "m":
 		while True:
 			media_name = input("\tEnter the movie name ( type 'q' to quit): ")
-			if media_name.lower() == 'q':
+			if media_name == 'q':
 				print("Watch process canceled.")
 				return
 
@@ -631,7 +654,7 @@ def watch():
 	elif media_type == "c":
 		while True:
 			media_name = input("\tEnter the collection name (or type 'q' to quit): ")
-			if media_name.lower() == 'q':
+			if media_name.upper() == 'Q':
 				print("Watch process canceled.")
 				return
 
@@ -668,19 +691,19 @@ def search_user():
 		return
 
 	while True:
-		input_chars = input("Enter the starting characters of the email to search (or quit(q)): ")
-		if input_chars.lower() == 'q':
-			print("Search process canceled.")
+		input_chars = (input(blue.apply("\tEnter the starting characters of the email to search (or quit(q)): "))).strip()
+		if input_chars == 'q':
+			print(blue.apply("\tSearch process canceled."))
 			return
 
 		users = GET("user", col="email", criteria=f"email LIKE '{input_chars}%'", limit= None)
 		if not users:
-			print(red.apply("\tNo emails Try with a different input"))
+			print(red.apply("\tNo emails found. Try with a different input."))
 			continue
 		else:
 			print(green.apply("\tEmails found:"))
 			for user in users:
-				print("\t" + user[0])
+				print(green.apply("\t" + user[0]))
 
 # Help command message
 def help_message():
@@ -736,44 +759,47 @@ def main():
 				print(blue.apply("Enter a command or type HELP"))
 				user_input = input("> ")
 				if user_input.strip():
-					command = user_input.strip().lower()
-					if command == "help":
+					command = user_input.strip().upper()
+					if command == "HELP":
 						help_message()
-					elif command == 'create account':
+					elif command == 'CREATE ACCOUNT':
 						create_account()
-					elif command == 'login':
+					elif command == 'LOGIN':
+						if logged_in:
+							print(red.apply(f"\tAlready logged in."))
+							continue
 						email_username = input(blue.apply("\tEnter your Email or Username: "))
 						password = input(blue.apply("\tEnter your Password: "))
 						login(email_username, password)
-					elif command == 'logout':
+					elif command == 'LOGOUT':
 						logout()
-					elif command == 'create collection':
+					elif command == 'CREATE COLLECTION':
 						create_collection()
-					elif command == 'search movies' or command == 'sm':
+					elif command == 'SEARCH MOVIES' or command == 'SM':
 						search_movies()
-					elif command == 'list collections':
+					elif command == 'LIST COLLECTIONS':
 						list_collections()
-					elif command == 'view collection':
+					elif command == 'VIEW COLLECTION':
 						view_collection()
-					elif command == 'add to collection':
+					elif command == 'ADD TO COLLECTION':
 						add_to_collection()
-					elif command == 'rename collection':
+					elif command == 'RENAME COLLECTION':
 						rename_collection()
-					elif command == 'delete collection':
+					elif command == 'DELETE COLLECTION':
 						delete_collection()
-					elif command == 'remove from collection':
+					elif command == 'REMOVE FROM COLLECTION':
 						remove_from_collection()
-					elif command == 'follow':
+					elif command == 'FOLLOW':
 						follow()
-					elif command == 'unfollow':
+					elif command == 'UNFOLLOW':
 						unfollow()
-					elif command == 'rate movie':
+					elif command == 'RATE MOVIE':
 						userrates()
-					elif command == 'search users':
+					elif command == 'SEARCH USERS':
 						search_user()
-					elif command == "watch":
+					elif command == "WATCH":
 						watch()
-					elif command == 'quit' or command == 'exit':
+					elif command == 'QUIT' or command == 'EXIT':
 						# close connection
 						curs.close()
 						conn.close()
