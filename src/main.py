@@ -24,7 +24,7 @@ logged_in_as = None # global userid instance
 def GET(table, col, criteria=None, limit=None, join=None, sort_col=None, sort_by='DESC', group_by=None):
 	try:
 		query = f"SELECT {col} FROM \"{table}\""
-		if join: query += f" JOIN {join}"
+		if join: query += f" {join}"
 		if criteria: query += f" WHERE {criteria}"
 		if group_by: query += f" GROUP BY {group_by}"
 		# Apply sort direction to each column in sort_col
@@ -88,8 +88,8 @@ def create_account():
 	first = input(blue.apply("\tEnter your first name: "))
 	last = input(blue.apply("\tEnter your last name: "))
 
-	email_exists = GET("user", criteria=f"email = '{email}'")
-	username_exists = GET("user", criteria=f"username = '{username}'")
+	email_exists = GET("user", col="userid", criteria=f"email = '{email}'")
+	username_exists = GET("user", col="userid", criteria=f"username = '{username}'")
 	maxid = GET("user", col=f"MAX(userid)")
 
 	if email_exists:
@@ -124,8 +124,8 @@ def login(email_username, password_guess):
 	if logged_in: print(f"Already logged in.")
 
 	# check if user exists
-	email_exists = GET("user", criteria=f"email = '{email_username}'")
-	username_exists = GET("user", criteria=f"username = '{email_username}'")
+	email_exists = GET("user", col="userid, username, password", criteria=f"email = '{email_username}'")
+	username_exists = GET("user", col="userid, username, password", criteria=f"username = '{email_username}'")
 
 
 	if not email_exists and not username_exists:
@@ -139,7 +139,7 @@ def login(email_username, password_guess):
 	# check password
 	if valid_password(password, password_guess):
 		time = datetime.now()
-		print(green.apply("Logging in..."))
+		print(green.apply("\tLogging in..."))
 		updated = UPDATE("user", values=f"lastaccessdate = '{time}'", criteria=f"userid = {userid}")
 		if updated:
 			logged_in = True
@@ -176,18 +176,25 @@ def create_collection():
 		print(red.apply("\tYou must be signed in to create a collection."))
 		return
 
-	collection_name = input(blue.apply("\tEnter the Collection Name: "))
+	collection_name = ""
+	while not collection_name:
+		collection_name = (input(blue.apply("\tEnter the Collection Name: "))).strip()
+		if not collection_name:
+			print(red.apply(f"\tYou must enter a collection name."))
 
-	name_exists = GET("collection", criteria=f"name = '{collection_name}' and userid = '{logged_in_as}'")
+	name_exists = GET("collection", col="name", criteria=f"name = '{collection_name}' and userid = '{logged_in_as}'")
 	if name_exists:
 		print(red.apply(f"\tCollection '{collection_name}' already exists."))
 		return
 
-	maxid = GET("collection", col=f"MAX(collectionid)")
-
+	maxid = GET("collection", col=f"MAX(collectionid)", criteria=f"userid = '{logged_in_as}'")
+	if maxid and maxid[0][0] is not None:
+		maxi = maxid[0][0] + 1
+	else:
+		maxi = 0
 	entry = {
 		"userid": logged_in_as,
-		"collectionid": maxid[0][0] + 1,
+		"collectionid": maxi,
 		"name": collection_name,
 	}
 
@@ -235,7 +242,7 @@ def delete_collection():
 		if collection_name == 'q':
 			return
 
-		collection = GET("collection", criteria=f"userid = '{logged_in_as}' AND name = '{collection_name}'")
+		collection = GET("collection", col="name", criteria=f"userid = '{logged_in_as}' AND name = '{collection_name}'")
 		if not collection:
 			print(red.apply(f"\tCollection '{collection_name}' does not exist."))
 
@@ -264,9 +271,9 @@ def view_collection():
 			name = input(blue.apply("\tEnter the User's Email or Username (or quit (q)): "))
 			if name == 'q':
 				return
-			name_exists = GET("user", criteria=f"email = '{name}'")
+			name_exists = GET("user", col="userid, username", criteria=f"email = '{name}'")
 			if not name_exists:
-				name_exists = GET("user", criteria=f"username = '{name}'")
+				name_exists = GET("user", col="userid, username", criteria=f"username = '{name}'")
 				if not name_exists:
 					print(red.apply(f"\tUser '{name}' does not exist."))
 		userid = name_exists[0][0]
@@ -276,11 +283,11 @@ def view_collection():
 		collection = input(blue.apply("\tEnter the Collection's Name (or quit(q)): "))
 		if collection == 'q':
 			return
-		collection_exists = GET("collection", criteria=f"name = '{collection}' and userid = {userid}")
+		collection_exists = GET("collection", col="userid, name", criteria=f"name = '{collection}' and userid = {userid}")
 		if not collection_exists:
 			print(red.apply(f"\tThe collection '{collection}' does not exist."))
 
-	result = GET("movie", col="title, runtime, mpaa", join=f"collectionstores ON movie.movieid = collectionstores.movieid JOIN collection ON collection.collectionid = collectionstores.collectionid", criteria=f"collection.name = '{collection}'")
+	result = GET("movie", col="title, runtime, mpaa", join=f"JOIN collectionstores ON movie.movieid = collectionstores.movieid JOIN collection ON collection.collectionid = collectionstores.collectionid", criteria=f"collection.name = '{collection}'")
 
 	if not result:
 		print(green.apply(f"\tCollection '{collection}' does is empty."))
@@ -301,8 +308,8 @@ def list_collections():
 	if not logged_in:
 		print(red.apply("\tYou must be logged in to list your collections."))
 		return
-	collections = GET("collection", "collection.name, count(collectionstores.movieid), sum(movie.runtime)",
-					  join="collectionstores on collectionstores.collectionid = collection.collectionid and collectionstores.userid = collection.userid JOIN movie on movie.movieid = collectionstores.movieid",
+	collections = GET("collection", "collection.name, COUNT(collectionstores.movieid), COALESCE(SUM(movie.runtime), 0)",
+					  join="LEFT JOIN collectionstores on collectionstores.collectionid = collection.collectionid and collectionstores.userid = collection.userid LEFT JOIN movie on movie.movieid = collectionstores.movieid",
 					  criteria=f"collection.userid = '{logged_in_as}'",group_by="collection.name", sort_by="ASC", sort_col="collection.name")
 
 	if not collections:
@@ -323,7 +330,7 @@ def search_movies():
 			   "avg(userrates.rating) AS avg_rating, moviereleases.releasedate, movie.movieid")
 
 	table = "movie"
-	join = """userrates on userrates.movieid = movie.movieid JOIN moviereleases ON movie.movieid = moviereleases.movieid JOIN 
+	join = """JOIN userrates on userrates.movieid = movie.movieid JOIN moviereleases ON movie.movieid = moviereleases.movieid JOIN 
 	moviedirects ON moviedirects.movieid = movie.movieid JOIN productionteam ON moviedirects.productionid = productionteam.productionid 
 	JOIN moviegenre ON movie.movieid = moviegenre.movieid JOIN genre ON moviegenre.genreid = genre.genreid JOIN movieproduces 
 	ON movie.movieid = movieproduces.movieid JOIN studio ON movieproduces.studioid = studio.studioid"""
@@ -407,7 +414,7 @@ def search_movies():
 		res = list(res)
 		res[5] = round(float(res[5]), 2)
 		res = tuple(res)
-		cast = GET(table='productionteam', col="productionteam.firstname, productionteam.lastname", join="movieactsin ON productionteam.productionid = movieactsin.productionid", criteria=f'movieactsin.movieid = {res[7]}')
+		cast = GET(table='productionteam', col="productionteam.firstname, productionteam.lastname", join="JOIN movieactsin ON productionteam.productionid = movieactsin.productionid", criteria=f'movieactsin.movieid = {res[7]}')
 		actors_str = ", ".join([f"{first} {last}" for first, last in cast])
 
 		print(green.apply(f"\t{res[0]}, [{actors_str}], {res[1]} {res[2]}, {res[3]} MIN, {res[4]}, {res[5]} STARS, {res[6]}"))
@@ -426,7 +433,7 @@ def add_to_collection():
 		collection = input(blue.apply("\tEnter full name of Collection to add the movie to (or quit(q)): "))
 		if collection == 'q':
 			return
-		coll_exists = GET("collection", criteria=f"name = '{collection}' and userid = {logged_in_as}")
+		coll_exists = GET("collection", col="name, userid", criteria=f"name = '{collection}' and userid = {logged_in_as}")
 		if not coll_exists:
 			print(red.apply(f"\tYou have no collection with name '{collection}'!"))
 
@@ -436,7 +443,7 @@ def add_to_collection():
 			print("Movie addition process ended.")
 			break
 
-		movie_exists = GET("movie", criteria=f"title = '{movie}'")
+		movie_exists = GET("movie", col="movieid, collectionid", criteria=f"title = '{movie}'")
 		if not movie_exists:
 			print(red.apply(f"\tNo movie exists with name {movie}!"))
 			continue
@@ -463,7 +470,7 @@ def remove_from_collection():
 		collection = input(blue.apply("\tEnter the Collection Name to Remove From (or quit(q)): "))
 		if collection == 'q':
 			return
-		collection_exists = GET("collection", criteria=f"name = '{collection}'")
+		collection_exists = GET("collection", col="name, collectionid", criteria=f"name = '{collection}'")
 		if not collection_exists:
 			print(red.apply(f"\tYou have no collection with name {collection}!"))
 
@@ -472,7 +479,7 @@ def remove_from_collection():
 		movie = input(blue.apply("\tEnter full name of movie to remove (or quit(q)): "))
 		if movie == 'q':
 			return
-		movie_exists = GET("movie", criteria=f"title = '{movie}'")
+		movie_exists = GET("movie", col="movieid", criteria=f"title = '{movie}'")
 		if not movie_exists:
 			print(red.apply(f"\tNo movie exists with name {movie}!"))
 
@@ -503,7 +510,7 @@ def follow():
 			"followerid": logged_in_as,
 			"followedid": followedid
 		}
-		already_following = GET("userfollows", criteria=f"followerid = {logged_in_as} AND followedid = {followedid}")
+		already_following = GET("userfollows", col="userid, username", criteria=f"followerid = {logged_in_as} AND followedid = {followedid}")
 		if not already_following:
 			return_value = POST("userfollows", query)
 			if return_value:
@@ -553,7 +560,7 @@ def userrates():
 			return
 
 		# Check if movie exists
-		movie = GET("movie", criteria=f"title = '{movie_name}'")
+		movie = GET("movie", col="movieid, title", criteria=f"title = '{movie_name}'")
 		if not movie:
 			print(red.apply("\tMovie not found. Please enter a proper name (check for typos)."))
 			continue  # Prompt for movie name again
@@ -613,7 +620,7 @@ def watch():
 				print("Watch process canceled.")
 				return
 
-			media = GET("movie", criteria=f"title = '{media_name}'")
+			media = GET("movie", col="movieid", criteria=f"title = '{media_name}'")
 			if not media:
 				print(red.apply("\tMovie not found. Please enter a proper name (check for typos)."))
 				continue
@@ -628,20 +635,20 @@ def watch():
 				print("Watch process canceled.")
 				return
 
-			media = GET("collection", criteria=f"name = '{media_name}'")
+			media = GET("collection", col="name, collectionid", criteria=f"name = '{media_name}'")
 			if not media:
 				print(red.apply("\tCollection not found. Please enter a proper name (check for typos)."))
 				continue
 			else:
 				collection_id = media[0][1]
-				movies = GET("collectionstores", col="movieid", criteria=f"collectionid = {collection_id}")
+				movies = GET("collectionstores", col="movieid, title", criteria=f"collectionid = {collection_id}")
 
 				for movie in movies:
 					movie_id = movie[0]
-					movie_name = GET("movie", col="title", criteria=f"movieId = {movie_id}")
+					# movie_name = GET("movie", col="title", criteria=f"movieId = {movie_id}")
 					entry = {"movieId": movie_id, "userId": logged_in_as, "watchDate": watch_date}
 					POST("userwatches", entry)
-					print(green.apply(f"\tMovie marked as watched: {movie_name}."))
+					print(green.apply(f"\tMovie marked as watched: {movie[1]}."))
 
 				print(green.apply(f"\tEntire collection '{media_name}' marked as watched."))
 				return
