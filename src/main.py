@@ -20,8 +20,8 @@ conn, curs = None, None  # global db instance
 logged_in = False # global login instance
 logged_in_as = None # global userid instance
 
-# SELECT * [from *]
-def GET(table, col='*', criteria=None, limit=None, join=None, sort_col=None, sort_by='DESC', group_by=None):
+# SELECT {col} FROM {table} JOIN {join} WHERE {criteria} GROUP BY {group_by} ORDER BY {sort_col} {sort_by} LIMIT {limit}
+def GET(table, col, criteria=None, limit=None, join=None, sort_col=None, sort_by='DESC', group_by=None):
 	try:
 		query = f"SELECT {col} FROM \"{table}\""
 		if join: query += f" JOIN {join}"
@@ -30,7 +30,7 @@ def GET(table, col='*', criteria=None, limit=None, join=None, sort_col=None, sor
 		# Apply sort direction to each column in sort_col
 		if sort_col:
 			# Split sort_col by commas, strip whitespace, and append sort_by
-			order_clause = ", ".join([f"{col.strip()} {sort_by}" for col in sort_col.split(",")])
+			order_clause = ", ".join([f"{scol.strip()} {sort_by}" for scol in sort_col.split(",")])
 			query += f" ORDER BY {order_clause}"
 		if limit: query += f" LIMIT {limit}"
 		curs.execute(query)
@@ -38,7 +38,7 @@ def GET(table, col='*', criteria=None, limit=None, join=None, sort_col=None, sor
 	except Exception as e:
 		print(f"GET failed: {e}")
 
-# INSERT INTO 
+# INSERT INTO {table} VALUES {data}
 def POST(table, data):
 	try:
 		cols = ', '.join(data.keys())
@@ -50,7 +50,8 @@ def POST(table, data):
 	except Exception as e:
 		print(red.apply(f"POST failed: {e}"))
 
-def UPDATE(table, values, criteria=None):
+# UPDATE {table} SET {values} WHERE {criteria}
+def UPDATE(table, values, criteria):
 	try:
 		query = f"UPDATE \"{table}\" SET {values}"
 		if criteria: query += f" WHERE {criteria}"
@@ -60,6 +61,7 @@ def UPDATE(table, values, criteria=None):
 	except Exception as e:
 		print(f"UPDATE failed: {e}")
 
+# DELETE FROM {table} WHERE {criteria}
 def DELETE(table, criteria):
 	try:
 		query = f"DELETE FROM \"{table}\" WHERE {criteria}"
@@ -69,6 +71,7 @@ def DELETE(table, criteria):
 	except Exception as e:
 		print(f"UPDATE failed: {e}")
 
+# Create a new user account
 def create_account():
 	# Get account info from user
 	email = input(blue.apply("\tEnter your Email: "))
@@ -113,6 +116,7 @@ def create_account():
 	else:
 		print(red.apply("User creation failed."))
 
+# Login to an existing user account
 def login(email_username, password_guess):
 	# check if logged in
 	global logged_in
@@ -150,6 +154,7 @@ def login(email_username, password_guess):
 	else:
 		print(red.apply(f"\tIncorrect password."))
 
+# Log out from user account
 def logout():
 	# check if logged in
 	global logged_in
@@ -192,7 +197,8 @@ def create_collection():
 	else:
 		print(red.apply("\tCollection creation failed."))
 
-def edit_collection():
+# Rename one of the users collections
+def rename_collection():
 	global logged_in
 	global logged_in_as
 	if not logged_in:
@@ -215,11 +221,12 @@ def edit_collection():
 	else:
 		print(red.apply(f"\tCould not update collection name."))
 
+# Delete one of the users collections
 def delete_collection():
 	global logged_in
 	global logged_in_as
 	if not logged_in:
-		print(red.apply("\tYou must be signed in to create a collection."))
+		print(red.apply("\tYou must be signed in to delete a collection."))
 		return
 
 	collection = []
@@ -232,10 +239,10 @@ def delete_collection():
 		if not collection:
 			print(red.apply(f"\tCollection '{collection_name}' does not exist."))
 
-
 	DELETE("collection", criteria=f"userid = '{logged_in_as}' and name = '{collection_name}'")
 	print(green.apply(f"\tDeleted {collection_name}."))
 
+# View a collection (own or another persons)
 def view_collection():
 	self_collections = None
 	while self_collections != 'y' and self_collections != 'n':
@@ -254,7 +261,9 @@ def view_collection():
 	elif self_collections == 'n':
 		name_exists = []
 		while not name_exists:
-			name = input(blue.apply("\tEnter the User's Email or Username: "))
+			name = input(blue.apply("\tEnter the User's Email or Username (or quit (q)): "))
+			if name == 'q':
+				return
 			name_exists = GET("user", criteria=f"email = '{name}'")
 			if not name_exists:
 				name_exists = GET("user", criteria=f"username = '{name}'")
@@ -264,7 +273,9 @@ def view_collection():
 
 	collection_exists = []
 	while not collection_exists:
-		collection = input(blue.apply("\tEnter the Collection's Name: "))
+		collection = input(blue.apply("\tEnter the Collection's Name (or quit(q)): "))
+		if collection == 'q':
+			return
 		collection_exists = GET("collection", criteria=f"name = '{collection}' and userid = {userid}")
 		if not collection_exists:
 			print(red.apply(f"\tThe collection '{collection}' does not exist."))
@@ -285,6 +296,7 @@ def view_collection():
 	for res in result:
 		print(green.apply(f"\t{res}"))
 
+# List the statistics about one of your own collections
 def list_collections():
 	if not logged_in:
 		print(red.apply("\tYou must be logged in to list your collections."))
@@ -400,6 +412,7 @@ def search_movies():
 
 		print(green.apply(f"\t{res[0]}, [{actors_str}], {res[1]} {res[2]}, {res[3]} MIN, {res[4]}, {res[5]} STARS, {res[6]}"))
 
+# Add a movie to an existing collection (your own)
 def add_to_collection():
 	global logged_in
 	global logged_in_as
@@ -436,6 +449,7 @@ def add_to_collection():
 		else:
 			print(red.apply("\tMovie addition to collection failed."))
 
+# Remove a movie from a collection (your own)
 def remove_from_collection():
 	global logged_in
 	global logged_in_as
@@ -465,6 +479,7 @@ def remove_from_collection():
 	DELETE("collectionstores", criteria=f"collectionid = '{collection_exists[0][1]}' and userid = {logged_in_as} and movieid = {movie_exists[0][0]}")
 	print(green.apply(f"\tRemoved '{movie}' from collection '{collection}'."))
 
+# Follow another user
 def follow():
 	global logged_in
 	global logged_in_as
@@ -500,6 +515,7 @@ def follow():
 			print(red.apply("\tYou are already following this user."))
 			return
 
+# Unfollow a followed user
 def unfollow():
 		global logged_in
 		global logged_in_as
@@ -522,6 +538,7 @@ def unfollow():
 			DELETE("userfollows", criteria=f"followerid = {logged_in_as} and followedid = {followedid}")
 			print(green.apply(f"\tUnfollowed {followed_email}."))
 
+# Rate a movie
 def userrates():
 	global logged_in, logged_in_as
 	if not logged_in:
@@ -569,6 +586,7 @@ def userrates():
 	else:
 		print(red.apply("\tFailed to add rating."))
 
+# Watch a movie or collection
 def watch():
 	global logged_in, logged_in_as
 	if not logged_in:
@@ -635,6 +653,7 @@ def watch():
 	else:
 		print(red.apply("\tFailed to mark movie as watched."))
 
+# Search for users
 def search_user():
 	global logged_in
 	if not logged_in:
@@ -656,6 +675,7 @@ def search_user():
 			for user in users:
 				print("\t" + user[0])
 
+# Help command message
 def help_message():
 	print(blue.apply("                Studio TVWT Commands"))
 	print(blue.apply("-----------------------------------------------------------------------------"))
@@ -665,7 +685,7 @@ def help_message():
 	print(blue.apply("LOGOUT                   log out of your account"))
 	print(blue.apply("CREATE COLLECTION        create new collection"))
 	print(blue.apply("LIST COLLECTIONS         lists a user's (or your own) collections"))
-	print(blue.apply("EDIT COLLECTION          change your collection's name"))
+	print(blue.apply("RENAME COLLECTION        change your collection's name"))
 	print(blue.apply("DELETE COLLECTION        delete one of your collections"))
 	print(blue.apply("SEARCH MOVIES            search movies"))
 	print(blue.apply("ADD TO COLLECTION        add a movie to one of your collections"))
@@ -730,8 +750,8 @@ def main():
 						view_collection()
 					elif command == 'add to collection':
 						add_to_collection()
-					elif command == 'edit collection':
-						edit_collection()
+					elif command == 'rename collection':
+						rename_collection()
 					elif command == 'delete collection':
 						delete_collection()
 					elif command == 'remove from collection':
