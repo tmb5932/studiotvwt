@@ -624,13 +624,13 @@ def watch():
 		return False
 
 	while True:
-		media_type = input('Watch a single Movie or Collection? (input "m" or "c"): ')
+		media_type = input(blue.apply('\tWatch a single Movie or Collection? (input "M" or "C" or quit(q)): '))
 		if media_type.upper() == 'Q':
-			print("Watch process canceled.")
+			print(blue.apply("\tWatch process canceled."))
 			return
 
 		if media_type.upper() not in ["M", "C"]:
-			print("Invalid input. Please enter 'movie' or 'collection'.")
+			print(red.apply("\tInvalid input. Please enter 'movie' or 'collection'."))
 		else:
 			break
 
@@ -638,9 +638,9 @@ def watch():
 
 	if media_type == "m":
 		while True:
-			media_name = input("\tEnter the movie name ( type 'q' to quit): ")
+			media_name = input(blue.apply("\tEnter the movie name ('q' to quit): "))
 			if media_name == 'q':
-				print("Watch process canceled.")
+				print(blue.apply("\tWatch process canceled."))
 				return
 
 			media = GET("movie", col="movieid", criteria=f"title = '{media_name}'")
@@ -652,19 +652,45 @@ def watch():
 				break
 
 	elif media_type == "c":
+		own_collection = 'default'
+		while own_collection.upper() not in ['Y', 'N']:
+			own_collection = input(blue.apply("\tWatch one of your collections ('Y'), or someone elses ('N') (or 'q' to quit): "))
+			if own_collection.upper() == 'Q':
+				print(blue.apply("\tWatch process canceled."))
+				return
+			if own_collection.upper() not in ['Y', 'N']:
+				print(red.apply("\tInvalid input. Please enter 'Y' or 'N'."))
+
+		if own_collection.upper() == 'N':
+			user_exists = []
+			while not user_exists:
+				user = (input(blue.apply("\tEnter the owner of the collections email or username (or type 'q' to quit): "))).strip()
+				if user.upper() == 'Q':
+					print(blue.apply("\tWatch process canceled."))
+					return
+				user_exists = GET(table="user", col="userid", criteria=f"email = '{user}'")
+				if not user_exists:
+					user_exists = GET(table="user", col="userid", criteria=f"username = '{user}'")
+					if not user_exists:
+						print(red.apply("\tUser not found. Please enter the proper name."))
+						continue
+			user_id = user_exists[0][0]
+		else:
+			user_id = logged_in_as
+
 		while True:
-			media_name = input("\tEnter the collection name (or type 'q' to quit): ")
+			media_name = input(blue.apply("\tEnter the collection name (or type 'q' to quit): "))
 			if media_name.upper() == 'Q':
-				print("Watch process canceled.")
+				print(blue.apply("\tWatch process canceled."))
 				return
 
-			media = GET("collection", col="name, collectionid", criteria=f"name = '{media_name}'")
+			media = GET("collection", col="name, collectionid", criteria=f"name = '{media_name}' and userid = {user_id}")
 			if not media:
 				print(red.apply("\tCollection not found. Please enter a proper name (check for typos)."))
 				continue
 			else:
 				collection_id = media[0][1]
-				movies = GET("collectionstores", col="movieid, title", criteria=f"collectionid = {collection_id}")
+				movies = GET("collectionstores", col="collectionstores.movieid, movie.title", criteria=f"collectionid = {collection_id} and userid = {user_id}", join="JOIN movie ON movie.movieid = collectionstores.movieid")
 
 				for movie in movies:
 					movie_id = movie[0]
