@@ -320,6 +320,7 @@ def search_movies():
 				"moviereleases.releasedate, movie.movieid")
 
 	# Get user input to search by
+	print(yellow.apply("\tEnter values to search by, or leave blank to ignore during search."))
 	title = input(blue.apply("\tEnter the Movie's Title: "))
 	release_date = ["year", "month", "day"]
 	release_date[0] = input(blue.apply("\tEnter the Release Year: "))
@@ -378,8 +379,8 @@ def search_movies():
 		sort_col = "moviereleases.releasedate, movie.title"
 	elif sorting == '5':
 		sort_col = "avg_rating, movie.title"
-
-	sort_col = sort_col if sort_col else "movie.title, moviereleases.releasedate"
+	else:
+		sort_col = "movie.title, moviereleases.releasedate"
 
 	result = GET(table=table, join=join, col=columns,
 				 criteria=criteria, group_by=group_by, sort_by=sort_by, sort_col=sort_col, limit=25)
