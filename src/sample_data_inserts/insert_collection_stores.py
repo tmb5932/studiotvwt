@@ -11,9 +11,10 @@ def altMakeSQLStatement():
         if userid in range(1000, 1051) or userid in range(598, 651) or userid in range(700, 751) or userid in range(800, 851) or userid in range(900, 951) or userid == 413 or userid == 497:
             continue
         for collectionid in range(0, 3):
-            movie = random.randint(0, 999)
-            if(userid, movie, collectionid) not in statements:
-                statements.append((userid, movie, collectionid))
+            for movieid in range(0, 4):
+                movie = random.randint(0, 999)
+                if(userid, movie, collectionid) not in statements:
+                    statements.append((userid, movie, collectionid))
     return statements
 
 def makeSQLStatement():
