@@ -9,7 +9,7 @@ def makeSQLStatement():
     statements = []
     key = []
     for movie in range(0, 999):
-        for i in range(0, 7):
+        for i in range(0, random.randint(5, 100)): # adds random amount of watches for each movie
             user = random.randint(0, 1000)
             year = str(random.randint(1950, 2024))
             month = str(random.randint(1, 12))
