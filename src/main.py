@@ -20,6 +20,9 @@ conn, curs = None, None  # global db instance
 logged_in = False # global login instance
 logged_in_as = None # global userid instance
 
+def clear_screen():
+	print("\n" * 100)
+
 # SELECT {col} FROM {table} JOIN {join} WHERE {criteria} GROUP BY {group_by} ORDER BY {sort_col} {sort_by} LIMIT {limit}
 def GET(table, col, criteria=None, limit=None, join=None, sort_col=None, sort_by='DESC', group_by=None):
 	try:
@@ -834,6 +837,7 @@ def help_message():
 	print(blue.apply("RATE MOVIE               applies a rating to a movie"))
 	print(blue.apply("WATCH                    watch a movie or all movies in a collection"))
 	print(blue.apply("RECOMMEND                select from four lists to see recommended movies"))
+	print(blue.apply("CLEAR                	   clears the screen"))
 	print(blue.apply("QUIT/EXIT                quit the program"))
 	print(blue.apply("-----------------------------------------------------------------------------"))
 
@@ -911,6 +915,8 @@ def main():
 						watch()
 					elif command == "RECOMMEND":
 						recommend()
+					elif command == "CLEAR":
+						clear_screen()
 					elif command == 'QUIT' or command == 'EXIT':
 						# close connection
 						curs.close()
