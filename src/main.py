@@ -587,6 +587,20 @@ def userrates():
 		else:
 			break
 
+	update_flag = False
+	rating_exists = GET(table="userrates", col="rating", criteria=f"movieid = {movie[0][0]} and userid = {logged_in_as}")
+	if rating_exists:
+		while True:
+			print(yellow.apply(f"\tYou have previously rated this movie as a {rating_exists[0][0]}."))
+			change = input(blue.apply("\tWould you to change your rating of the movie (Y/N): "))
+			if change not in ['Y', 'y', 'N', 'n']:
+				print(red.apply("\tPlease enter Y or N."))
+				continue
+			if change.upper() == 'N':
+				return
+			update_flag = True
+			break
+
 		# Loop until a valid rating
 	while True:
 		rating = 'default'
@@ -613,7 +627,10 @@ def userrates():
 	entry = { "movieId": movie_id, "userId": logged_in_as, "rating": rating }
 
 	# Insert the rating
-	post_result = POST("userrates", entry)
+	if update_flag: # if a rating from this user for this movie already exists, change it
+		post_result = UPDATE("userrates", values=f"rating = {rating}", criteria=f"movieid = {movie_id} and userid = {logged_in_as}")
+	else:
+		post_result = POST("userrates", entry)
 	if post_result:
 		print(green.apply(f"\tRating added: {movie_name} - {rating} stars."))
 	else:
@@ -633,7 +650,7 @@ def watch():
 			return
 
 		if media_type.upper() not in ["M", "C"]:
-			print(red.apply("\tInvalid input. Please enter 'movie' or 'collection'."))
+			print(red.apply("\tInvalid input. Please enter 'M' or 'C'."))
 		else:
 			break
 
@@ -770,6 +787,69 @@ def profile():
 						join="JOIN \"user\" ON userfollows.followerid = \"user\".userid")
 	print(green.apply(
 		f"\tYou Have {num_col_n_following[0][0]} Collections, {num_col_n_following[0][1]} Followers, and Follow {num_following[0][0]} User(s)"))
+	while True:
+		cont = input(blue.apply("\tView Your Top 10 Movies? (Y/N): "))
+		if cont not in ['y', 'Y', 'n', 'N']:
+			print(red.apply("\tInvalid input. Please enter Y or N"))
+			continue
+		if cont.lower() == 'n':
+			return
+		break
+
+	while True:
+		print(blue.apply("\tSort Your Top 10 Movies By:"))
+		print(blue.apply("\t1) Highest Personal Rating\n\t2) Most Personally Watched\n\t3) Both"))
+		option = input("\t> ")
+		if option not in ['1', '2', '3']:
+			print(red.apply("\tInvalid input. Please enter 1, 2, or 3."))
+			continue
+		option = int(option)
+		break
+
+	if option == 1:
+		columns = "userrates.rating, movie.title"
+		join_data = "JOIN userrates ON userrates.movieid = movie.movieid JOIN \"user\" ON userrates.userid = \"user\".userid"
+		sort_column = "userrates.rating, movie.title"
+		where = f"userrates.userid = {logged_in_as}"
+		group_by = "userrates.rating, movie.title"
+	elif option == 2:
+		columns = "COUNT(DISTINCT userwatches.watchdate) as watches, movie.title"
+		join_data = "LEFT JOIN userwatches ON userwatches.movieid = movie.movieid LEFT JOIN \"user\" ON userwatches.userid = \"user\".userid"
+		where = f"userwatches.userid = {logged_in_as}"
+		sort_column = "watches, movie.title"
+		group_by = "movie.title"
+	else:
+		columns = "movie.title, COALESCE(AVG(userrates.rating), 0) AS avg_rating, COUNT(DISTINCT userwatches.watchdate) AS watches"
+		join_data = f"LEFT JOIN userrates ON userrates.movieid = movie.movieid AND userrates.userid = {logged_in_as} LEFT JOIN userwatches ON userwatches.movieid = movie.movieid AND userwatches.userid = {logged_in_as}"
+		group_by = "movie.title"
+		sort_column = "watches, avg_rating"
+		where = f"userwatches.userid = {logged_in_as}"
+
+	top_ten = GET(table="movie",
+				  col=columns,
+				  join=join_data,
+				  criteria=where,
+				  sort_col=sort_column,
+				  sort_by="DESC",
+				  group_by=group_by,
+				  limit=10)
+
+	if option == 1:
+		if len(top_ten) < 10:
+			print(yellow.apply(f"\tYou have only rated {len(top_ten)} movies."))
+		for movie in top_ten:
+			print(green.apply(f"\t{movie[0]} STARS: {movie[1]}"))
+	elif option == 2:
+		for movie in top_ten:
+			print(green.apply(f"\t{movie[0]} WATCHES: {movie[1]}"))
+	else:
+		for movie in top_ten:
+			if movie[1] == 0:
+				stars = 'NO RATING\t'
+			else:
+				stars = str(int(movie[1])) + ' STARS\t'
+
+			print(green.apply(f"\t{movie[2]} WATCHES and {stars}: {movie[0]}"))
 
 
 # 20 most popular movies in last 90 days (rolling)
