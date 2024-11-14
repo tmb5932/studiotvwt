@@ -728,8 +728,28 @@ def search_user():
 			continue
 		else:
 			print(green.apply("\tEmails found:"))
+			i = 0
 			for user in users:
-				print(green.apply("\t" + user[0]))
+				i += 1
+				print(green.apply("\t" + str(i) + ": " + user[0]))
+			while True:
+				detail_prompt = input(blue.apply("\tEnter user number for details or search again (R) (or quit (Q)): "))
+				if detail_prompt == 'R' or detail_prompt == 'r':
+					break
+				elif detail_prompt == 'Q' or detail_prompt == 'q':
+					print(blue.apply("\tSearch process canceled."))
+					return
+				elif detail_prompt.isdigit() and int(detail_prompt) in range(1, i + 1):
+					detail_prompt = int(detail_prompt)
+					break
+				else:
+					print(red.apply("\tInvalid input. Please enter a valid number or (R/Q)."))
+
+			if detail_prompt == 'R' or detail_prompt == 'r':
+				continue
+			num_col_n_following = GET("user", col="COUNT(DISTINCT collection.collectionid) AS collection_count, COUNT(DISTINCT userfollows.followerid) AS follower_count", join="LEFT JOIN collection ON collection.userid = \"user\".userid LEFT JOIN userfollows ON \"user\".userid = userfollows.followedid", criteria=f"\"user\".email = \'{users[detail_prompt - 1][0]}\'", group_by="\"user\".userid")
+			num_following = GET("userfollows", col="COUNT(userfollows.followedid)", criteria=f"\"user\".email = \'{users[detail_prompt - 1][0]}\'", join="JOIN \"user\" ON userfollows.followerid = \"user\".userid")
+			print(green.apply(f"\t{num_col_n_following[0][0]} Collections, {num_col_n_following[0][1]} Followers, Following {num_following[0][0]} users"))
 
 # Help command message
 def help_message():
