@@ -31,6 +31,7 @@ def makeSQLStatement():
             if (movie, user) not in key:
                 statements.append((movie, user, year + "-" + month + "-" + day + " " + hour + ":" + minutes + ":" + seconds + "." + milliseconds))
                 key.append((movie, user))
+        print(f"Movie #{movie} Done :)")
     return statements
 
 def sshTunnel():
