@@ -9,34 +9,35 @@ def makeSQLStatement():
     statements = []
     key = []
     for movie in range(0, 999):
-        user = random.randint(0, 502)
-        year = str(random.randint(1950, 2024))
-        month = str(random.randint(1, 12))
-        day = str(random.randint(1, 28))
-        if int(month) < 10:
-            month = "0" + month
-        if int(day) < 10:
-            day = "0" + day
-        hour = str(random.randint(1, 23))
-        if int(hour) < 10:
-            hour = "0" + hour
-        minutes = str(random.randint(0, 59))
-        if int(minutes) < 10:
-            minutes = "0" + minutes
-        seconds = str(random.randint(0, 59))
-        if int(seconds) < 10:
-            seconds = "0" + seconds
-        milliseconds = str(random.randint(100000, 999999))
-        if (movie, user) not in key:
-            statements.append((movie, user, year + "-" + month + "-" + day + " " + hour + ":" + minutes + ":" + seconds + "." + milliseconds))
-            key.append((movie, user))
+        for i in range(0, 7):
+            user = random.randint(0, 1000)
+            year = str(random.randint(1950, 2024))
+            month = str(random.randint(1, 12))
+            day = str(random.randint(1, 28))
+            if int(month) < 10:
+                month = "0" + month
+            if int(day) < 10:
+                day = "0" + day
+            hour = str(random.randint(1, 23))
+            if int(hour) < 10:
+                hour = "0" + hour
+            minutes = str(random.randint(0, 59))
+            if int(minutes) < 10:
+                minutes = "0" + minutes
+            seconds = str(random.randint(0, 59))
+            if int(seconds) < 10:
+                seconds = "0" + seconds
+            milliseconds = str(random.randint(100000, 999999))
+            if (movie, user) not in key:
+                statements.append((movie, user, year + "-" + month + "-" + day + " " + hour + ":" + minutes + ":" + seconds + "." + milliseconds))
+                key.append((movie, user))
     return statements
 
 def sshTunnel():
     try:
         load_dotenv()
-        username = os.getenv("USERNAME")
-        password = os.getenv("PASSWORD")
+        username = os.getenv("DB_USERNAME")
+        password = os.getenv("DB_PASSWORD")
         dbName = "p320_11"
 
         with SSHTunnelForwarder(('starbug.cs.rit.edu', 22),
@@ -63,12 +64,12 @@ def sshTunnel():
             statements = makeSQLStatement()
             curs.executemany(insert_query, statements)
             conn.commit()
-            print("All movie-producer relations inserted successfully!")
+            print("All user watches inserted successfully!")
             conn.close()
 
 
-    except:
-        print("Connection failed")
+    except Exception as e:
+        print("Connection failed: " + str(e))
 
 
 
