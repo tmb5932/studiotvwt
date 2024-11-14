@@ -749,7 +749,25 @@ def search_user():
 				continue
 			num_col_n_following = GET("user", col="COUNT(DISTINCT collection.collectionid) AS collection_count, COUNT(DISTINCT userfollows.followerid) AS follower_count", join="LEFT JOIN collection ON collection.userid = \"user\".userid LEFT JOIN userfollows ON \"user\".userid = userfollows.followedid", criteria=f"\"user\".email = \'{users[detail_prompt - 1][0]}\'", group_by="\"user\".userid")
 			num_following = GET("userfollows", col="COUNT(userfollows.followedid)", criteria=f"\"user\".email = \'{users[detail_prompt - 1][0]}\'", join="JOIN \"user\" ON userfollows.followerid = \"user\".userid")
-			print(green.apply(f"\t{num_col_n_following[0][0]} Collections, {num_col_n_following[0][1]} Followers, Follows {num_following[0][0]}\n"))
+			print(green.apply(f"They Have \t{num_col_n_following[0][0]} Collections, {num_col_n_following[0][1]} Followers, and Follow {num_following[0][0]} User(s)\n"))
+
+# Displays the currently logged-in Users profile
+def profile():
+	global logged_in, logged_in_as
+	if not logged_in:
+		print(red.apply("\tYou must be signed in to view your profile."))
+		return
+	num_col_n_following = GET("user",
+							  col="COUNT(DISTINCT collection.collectionid) AS collection_count, COUNT(DISTINCT userfollows.followerid) AS follower_count",
+							  join="LEFT JOIN collection ON collection.userid = \"user\".userid LEFT JOIN userfollows ON \"user\".userid = userfollows.followedid",
+							  criteria=f"\"user\".userid = {logged_in_as}",
+							  group_by="\"user\".userid")
+	num_following = GET("userfollows", col="COUNT(userfollows.followedid)",
+						criteria=f"\"user\".userid = {logged_in_as}",
+						join="JOIN \"user\" ON userfollows.followerid = \"user\".userid")
+	print(green.apply(
+		f"\tYou Have {num_col_n_following[0][0]} Collections, {num_col_n_following[0][1]} Followers, and Follow {num_following[0][0]} User(s)"))
+
 
 # 20 most popular movies in last 90 days (rolling)
 def mostpopular_90days():
@@ -800,6 +818,7 @@ def help_message():
 	print(blue.apply("CREATE ACCOUNT           create new account"))
 	print(blue.apply("LOGIN                    log in to your account"))
 	print(blue.apply("LOGOUT                   log out of your account"))
+	print(blue.apply("PROFILE                  view your profile"))
 	print(blue.apply("CREATE COLLECTION        create new collection"))
 	print(blue.apply("LIST COLLECTIONS         lists a user's (or your own) collections"))
 	print(blue.apply("RENAME COLLECTION        change your collection's name"))
@@ -861,6 +880,8 @@ def main():
 						login(email_username, password)
 					elif command == 'LOGOUT':
 						logout()
+					elif command == 'PROFILE':
+						profile()
 					elif command == 'CREATE COLLECTION':
 						create_collection()
 					elif command == 'SEARCH MOVIES' or command == 'SM':
