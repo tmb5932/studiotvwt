@@ -717,7 +717,7 @@ def search_user():
 		return
 
 	while True:
-		input_chars = (input(blue.apply("\tEnter the starting characters of the email to search (or quit(q)): "))).strip()
+		input_chars = (input(blue.apply("\tEnter the starting characters of the email to search (or quit(Q)): "))).strip()
 		if input_chars == 'q':
 			print(blue.apply("\tSearch process canceled."))
 			return
@@ -749,7 +749,7 @@ def search_user():
 				continue
 			num_col_n_following = GET("user", col="COUNT(DISTINCT collection.collectionid) AS collection_count, COUNT(DISTINCT userfollows.followerid) AS follower_count", join="LEFT JOIN collection ON collection.userid = \"user\".userid LEFT JOIN userfollows ON \"user\".userid = userfollows.followedid", criteria=f"\"user\".email = \'{users[detail_prompt - 1][0]}\'", group_by="\"user\".userid")
 			num_following = GET("userfollows", col="COUNT(userfollows.followedid)", criteria=f"\"user\".email = \'{users[detail_prompt - 1][0]}\'", join="JOIN \"user\" ON userfollows.followerid = \"user\".userid")
-			print(green.apply(f"\t{num_col_n_following[0][0]} Collections, {num_col_n_following[0][1]} Followers, Following {num_following[0][0]} users"))
+			print(green.apply(f"\t{num_col_n_following[0][0]} Collections, {num_col_n_following[0][1]} Followers, Follows {num_following[0][0]}\n"))
 
 # Help command message
 def help_message():
