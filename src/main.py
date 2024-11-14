@@ -9,7 +9,7 @@ Author: William Walker (wbw1991@g.rit.edu)
 Author: Travis Brown (tmb5932@rit.edu)
 
 """
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import psycopg2
 from sshtunnel import SSHTunnelForwarder
@@ -751,6 +751,47 @@ def search_user():
 			num_following = GET("userfollows", col="COUNT(userfollows.followedid)", criteria=f"\"user\".email = \'{users[detail_prompt - 1][0]}\'", join="JOIN \"user\" ON userfollows.followerid = \"user\".userid")
 			print(green.apply(f"\t{num_col_n_following[0][0]} Collections, {num_col_n_following[0][1]} Followers, Follows {num_following[0][0]}\n"))
 
+# 20 most popular movies in last 90 days (rolling)
+def mostpopular_90days():
+	# define past 90 days
+	past90 = datetime.now() - timedelta(days=90)
+	past90_formatted = past90.strftime('%Y-%m-%d')
+
+	try:
+		columns = "movie.title, COUNT(userwatches.movieid) as popularity_count"
+		table = "movie"
+		join = "JOIN userwatches ON movie.movieid = userwatches.movieid"
+		criteria = f"userwatches.watchdate >= '{past90_formatted}'"
+		result = GET(table=table, col=columns, join=join, criteria=criteria, group_by="movie.title", sort_col="popularity_count", sort_by="DESC", limit=20)
+
+		if result:
+			print("              TOP 20 MOST POPULAR MOVIES")
+			print("------------------------------------------------------")
+			for movie, count in result:
+				print(f"\t{movie}\t{count} views")
+		else:
+			print(red.apply("No movies found."))
+	except Exception as e:
+		print(red.apply(f"Operation failed. {e}"))
+
+# Recommendation system
+def recommend():
+	while True:
+		input_chars = (input(blue.apply("\tEnter a digit corresponding to the information you would like to see:\n1) the top 20 most popular movies in the last 90 days (rolling)\n2) the top 20 most popular movies among my followers\n3) the top 5 new releases of the month (calendar month)\n4) for you: recommend movies to watch based on your play history and the play history of similar users\nQUIT/EXIT  go back to the main program\n") + "> ")).strip()
+
+		if input_chars == "1":
+			mostpopular_90days()
+		elif input_chars == "2":
+			pass
+		elif input_chars == "3":
+			pass
+		elif input_chars == "4":
+			pass
+		elif input_chars == "QUIT" or input_chars == "EXIT":
+			break
+		else:
+			print(red.apply("\tYou must enter a valid digit (1, 2, 3, or 4)."))
+
 # Help command message
 def help_message():
 	print(blue.apply("                Studio TVWT Commands"))
@@ -772,6 +813,7 @@ def help_message():
 	print(blue.apply("SEARCH USERS             search users by email"))
 	print(blue.apply("RATE MOVIE               applies a rating to a movie"))
 	print(blue.apply("WATCH                    watch a movie or all movies in a collection"))
+	print(blue.apply("RECOMMEND                select from four lists to see recommended movies"))
 	print(blue.apply("QUIT/EXIT                quit the program"))
 	print(blue.apply("-----------------------------------------------------------------------------"))
 
@@ -845,6 +887,8 @@ def main():
 						search_user()
 					elif command == "WATCH":
 						watch()
+					elif command == "RECOMMEND":
+						recommend()
 					elif command == 'QUIT' or command == 'EXIT':
 						# close connection
 						curs.close()
