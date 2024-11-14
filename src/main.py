@@ -503,9 +503,9 @@ def follow():
 		return
 
 	while True:
-		followed_email = (input("Enter the email of the user to follow (or quit(q)): ")).strip()
+		followed_email = (input(blue.apply("\tEnter the email of the user to follow (or quit(q)): "))).strip()
 		if followed_email.lower() == 'q':
-			print("Follow process canceled.")
+			print(blue.apply("\tFollow process canceled."))
 			return
 
 		followed_user = GET("user", col="userid", criteria=f"email = '{followed_email}'")
@@ -783,19 +783,20 @@ def mostpopular_90days():
 		result = GET(table=table, col=columns, join=join, criteria=criteria, group_by="movie.title", sort_col="popularity_count", sort_by="DESC", limit=20)
 
 		if result:
-			print("              TOP 20 MOST POPULAR MOVIES")
-			print("------------------------------------------------------")
+			print(green.apply("     TOP 20 MOST POPULAR MOVIES (90 DAYS ROLLING)"))
+			print(green.apply("------------------------------------------------------"))
 			for movie, count in result:
-				print(f"\t{movie}\t{count} views")
+				print(green.apply(f"\t{count} views:\t{movie}"))
+			print() # add a new line so that it spaces list from next command request
 		else:
-			print(red.apply("No movies found."))
+			print(red.apply("\tNo movies found."))
 	except Exception as e:
-		print(red.apply(f"Operation failed. {e}"))
+		print(red.apply(f"\tOperation failed. {e}"))
 
 # Recommendation system
 def recommend():
 	while True:
-		input_chars = (input(blue.apply("\tEnter a digit corresponding to the information you would like to see:\n1) the top 20 most popular movies in the last 90 days (rolling)\n2) the top 20 most popular movies among my followers\n3) the top 5 new releases of the month (calendar month)\n4) for you: recommend movies to watch based on your play history and the play history of similar users\nQUIT/EXIT  go back to the main program\n") + "> ")).strip()
+		input_chars = (input(blue.apply("\tEnter a digit corresponding to the information you would like to see:\n\t1) the top 20 most popular movies in the last 90 days (rolling)\n\t2) the top 20 most popular movies among my followers\n\t3) the top 5 new releases of the month (calendar month)\n\t4) for you: recommend movies to watch based on your play history and the play history of similar users\n\t5) QUIT/EXIT  go back to the main program\n") + "> ")).strip()
 
 		if input_chars == "1":
 			mostpopular_90days()
@@ -805,10 +806,10 @@ def recommend():
 			pass
 		elif input_chars == "4":
 			pass
-		elif input_chars == "QUIT" or input_chars == "EXIT":
+		elif input_chars == "5":
 			break
 		else:
-			print(red.apply("\tYou must enter a valid digit (1, 2, 3, or 4)."))
+			print(red.apply("\tYou must enter a valid digit (1, 2, 3, 4, OR 5)."))
 
 # Help command message
 def help_message():
