@@ -12,6 +12,7 @@ Author: Travis Brown (tmb5932@rit.edu)
 from datetime import datetime, timedelta
 
 import psycopg2
+from matplotlib.table import table
 from sshtunnel import SSHTunnelForwarder
 
 from utils import *
@@ -24,17 +25,14 @@ def clear_screen():
 	print("\n" * 100)
 
 # SELECT {col} FROM {table} JOIN {join} WHERE {criteria} GROUP BY {group_by} ORDER BY {sort_col} {sort_by} LIMIT {limit}
-def GET(table, col, criteria=None, limit=None, join=None, sort_col=None, sort_by='DESC', group_by=None):
+def GET(table, col, criteria=None, limit=None, join=None, sort_col=None, group_by=None):
 	try:
 		query = f"SELECT {col} FROM \"{table}\""
 		if join: query += f" {join}"
 		if criteria: query += f" WHERE {criteria}"
 		if group_by: query += f" GROUP BY {group_by}"
 		# Apply sort direction to each column in sort_col
-		if sort_col:
-			# Split sort_col by commas, strip whitespace, and append sort_by
-			order_clause = ", ".join([f"{scol.strip()} {sort_by}" for scol in sort_col.split(",")])
-			query += f" ORDER BY {order_clause}"
+		if sort_col: query += f" ORDER BY {sort_col}"
 		if limit: query += f" LIMIT {limit}"
 		curs.execute(query)
 		return curs.fetchall()
@@ -321,7 +319,7 @@ def list_collections():
 		return
 	collections = GET("collection", "collection.name, COUNT(collectionstores.movieid), COALESCE(SUM(movie.runtime), 0)",
 					  join="LEFT JOIN collectionstores on collectionstores.collectionid = collection.collectionid and collectionstores.userid = collection.userid LEFT JOIN movie on movie.movieid = collectionstores.movieid",
-					  criteria=f"collection.userid = '{logged_in_as}'",group_by="collection.name", sort_by="ASC", sort_col="collection.name")
+					  criteria=f"collection.userid = '{logged_in_as}'",group_by="collection.name", sort_col="collection.name ASC")
 
 	if not collections:
 		print(green.apply("\tYou have no collections."))
@@ -361,7 +359,7 @@ def search_movies():
 	genre = input(blue.apply("\tEnter the Genre Name: "))
 
 	if title:
-		criteria += f"title LIKE '%{title}%' AND "
+		criteria += f"title ILIKE '%{title}%' AND "
 	if release_date:
 		if release_date[0] and release_date[0].isdigit():
 			criteria += f"EXTRACT(YEAR FROM moviereleases.releasedate) = {int(release_date[0])} AND "
@@ -372,14 +370,14 @@ def search_movies():
 	if cast_member:
 		join += " JOIN movieactsin ON movieactsin.movieid = movie.movieid JOIN productionteam AS cast_mem ON movieactsin.productionid = cast_mem.productionid"
 		if cast_member[0]:
-			criteria += f"cast_mem.firstname LIKE '%{cast_member[0]}%' AND "
+			criteria += f"cast_mem.firstname ILIKE '%{cast_member[0]}%' AND "
 		if cast_member[1]:
-			criteria += f"cast_mem.lastname LIKE '%{cast_member[1]}%' AND "
+			criteria += f"cast_mem.lastname ILIKE '%{cast_member[1]}%' AND "
 	if studio:
 		join += " "
-		criteria += f"studio.name LIKE '%{studio}%' AND "
+		criteria += f"studio.name ILIKE '%{studio}%' AND "
 	if genre:
-		criteria += f"genre.name LIKE '%{genre}%' AND "
+		criteria += f"genre.name ILIKE '%{genre}%' AND "
 	criteria = criteria.rstrip(" AND ") # this removes any hanging AND from the where clause
 
 	# Get input on how to sort
@@ -413,7 +411,7 @@ def search_movies():
 		sort_col = "movie.title, moviereleases.releasedate"
 
 	result = GET(table=table, join=join, col=columns,
-				 criteria=criteria, group_by=group_by, sort_by=sort_by, sort_col=sort_col, limit=25)
+				 criteria=criteria, group_by=group_by, sort_col=f"{sort_col} {sort_by}", limit=25)
 	if result:
 		print(blue.apply(f"\tShowing up to 25 movies"))
 		print(green.apply("\tTITLE, CAST MEMBERS, DIRECTOR, RUNTIME, MPAA, AVG USER RATING, RELEASE DATE"))
@@ -829,8 +827,7 @@ def profile():
 				  col=columns,
 				  join=join_data,
 				  criteria=where,
-				  sort_col=sort_column,
-				  sort_by="DESC",
+				  sort_col=f"{sort_column} DESC",
 				  group_by=group_by,
 				  limit=10)
 
@@ -863,7 +860,7 @@ def mostpopular_90days():
 		table = "movie"
 		join = "JOIN userwatches ON movie.movieid = userwatches.movieid"
 		criteria = f"userwatches.watchdate >= '{past90_formatted}'"
-		result = GET(table=table, col=columns, join=join, criteria=criteria, group_by="movie.title", sort_col="popularity_count", sort_by="DESC", limit=20)
+		result = GET(table=table, col=columns, join=join, criteria=criteria, group_by="movie.title", sort_col="popularity_count DESC", limit=20)
 
 		if result:
 			print(green.apply("     TOP 20 MOST POPULAR MOVIES (90 DAYS ROLLING)"))
@@ -879,7 +876,7 @@ def mostpopular_90days():
 # Recommendation system
 def recommend():
 	while True:
-		input_chars = (input(blue.apply("\tEnter a digit corresponding to the information you would like to see:\n\t1) the top 20 most popular movies in the last 90 days (rolling)\n\t2) the top 20 most popular movies among my followers\n\t3) the top 5 new releases of the month (calendar month)\n\t4) for you: recommend movies to watch based on your play history and the play history of similar users\n\t5) QUIT/EXIT  go back to the main program\n") + "> ")).strip()
+		input_chars = (input(blue.apply("\tEnter a digit corresponding to the information you would like to see:\n\t1) the top 20 most popular movies in the last 90 days (rolling)\n\t2) the top 20 most popular movies among my followers\n\t3) the top 5 new releases of the month (calendar month)\n\t4) for you: recommend movies to watch based on your play history and the play history of similar users\n\t5) QUIT/EXIT  go back to the main program\n") + "\t> ")).strip()
 
 		if input_chars == "1":
 			mostpopular_90days()
@@ -890,7 +887,7 @@ def recommend():
 		elif input_chars == "4":
 			pass
 		elif input_chars == "5":
-			break
+			return
 		else:
 			print(red.apply("\tYou must enter a valid digit (1, 2, 3, 4, OR 5)."))
 
