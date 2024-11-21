@@ -897,6 +897,7 @@ def mostpopular_90days():
 	except Exception as e:
 		print(red.apply(f"\tOperation failed. {e}"))
 
+
 # 20 most popular movies among only my followers
 def mostpopular_amongfollowers():
 	# user must be signed in for this operation
@@ -980,7 +981,7 @@ def recommendation_system():
 		# get users who have watched those movies
 		table1 = 'userwatches'
 		col1   = 'DISTINCT userid'
-		crit1  = f"movieid IN ({movie_ids_str}) AND userid != {logged_in_as}"
+		crit1  = f"movieid IN ({movie_ids}) AND userid != {logged_in_as}"
 		similar = GET(table1, col=col1, criteria=crit1)
 		if not similar:
 			print(red.apply("\tNo similar users found."))
