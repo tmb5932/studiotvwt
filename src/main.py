@@ -740,7 +740,7 @@ def search_user():
 			print(blue.apply("\tSearch process canceled."))
 			return
 
-		users = GET("user", col="email", criteria=f"email LIKE '{input_chars}%'", limit= None)
+		users = GET("user", col="email, userid", criteria=f"email LIKE '{input_chars}%'", limit= None)
 		if not users:
 			print(red.apply("\tNo emails found. Try with a different input."))
 			continue
@@ -765,28 +765,31 @@ def search_user():
 
 			if detail_prompt == 'R' or detail_prompt == 'r':
 				continue
-			num_col_n_following = GET("user", col="COUNT(DISTINCT collection.collectionid) AS collection_count, COUNT(DISTINCT userfollows.followerid) AS follower_count", join="LEFT JOIN collection ON collection.userid = \"user\".userid LEFT JOIN userfollows ON \"user\".userid = userfollows.followedid", criteria=f"\"user\".email = \'{users[detail_prompt - 1][0]}\'", group_by="\"user\".userid")
-			num_following = GET("userfollows", col="COUNT(userfollows.followedid)", criteria=f"\"user\".email = \'{users[detail_prompt - 1][0]}\'", join="JOIN \"user\" ON userfollows.followerid = \"user\".userid")
-			print(green.apply(f"They Have \t{num_col_n_following[0][0]} Collections, {num_col_n_following[0][1]} Followers, and Follow {num_following[0][0]} User(s)\n"))
+			profile(users[detail_prompt - 1][1])
 
 # Displays the currently logged-in Users profile
-def profile():
-	global logged_in, logged_in_as
-	if not logged_in:
-		print(red.apply("\tYou must be signed in to view your profile."))
+def profile(users_id):
+	user_exists = GET(table='user', col="username", criteria=f"userid = {users_id}")
+	if not user_exists:
+		print(red.apply("\tInvalid user."))
 		return
+	if logged_in_as == users_id:
+		username = "You have"
+	else:
+		username = user_exists[0][0] + " has"
+
 	num_col_n_following = GET("user",
 							  col="COUNT(DISTINCT collection.collectionid) AS collection_count, COUNT(DISTINCT userfollows.followerid) AS follower_count",
 							  join="LEFT JOIN collection ON collection.userid = \"user\".userid LEFT JOIN userfollows ON \"user\".userid = userfollows.followedid",
-							  criteria=f"\"user\".userid = {logged_in_as}",
+							  criteria=f"\"user\".userid = {users_id}",
 							  group_by="\"user\".userid")
 	num_following = GET("userfollows", col="COUNT(userfollows.followedid)",
-						criteria=f"\"user\".userid = {logged_in_as}",
+						criteria=f"\"user\".userid = {users_id}",
 						join="JOIN \"user\" ON userfollows.followerid = \"user\".userid")
 	print(green.apply(
-		f"\tYou Have {num_col_n_following[0][0]} Collections, {num_col_n_following[0][1]} Followers, and Follow {num_following[0][0]} User(s)"))
+		f"\t{username} {num_col_n_following[0][0]} Collections, {num_col_n_following[0][1]} Followers, and Follow {num_following[0][0]} User(s)"))
 	while True:
-		cont = input(blue.apply("\tView Your Top 10 Movies? (Y/N): "))
+		cont = input(blue.apply("\tView Top 10 Movies? (Y/N): "))
 		if cont not in ['y', 'Y', 'n', 'N']:
 			print(red.apply("\tInvalid input. Please enter Y or N"))
 			continue
@@ -795,7 +798,7 @@ def profile():
 		break
 
 	while True:
-		print(blue.apply("\tSort Your Top 10 Movies By:"))
+		print(blue.apply("\tSort Top 10 Movies By:"))
 		print(blue.apply("\t1) Highest Personal Rating\n\t2) Most Personally Watched\n\t3) Both"))
 		option = input("\t> ")
 		if option not in ['1', '2', '3']:
@@ -807,33 +810,35 @@ def profile():
 	if option == 1:
 		columns = "userrates.rating, movie.title"
 		join_data = "JOIN userrates ON userrates.movieid = movie.movieid JOIN \"user\" ON userrates.userid = \"user\".userid"
-		sort_column = "userrates.rating, movie.title"
-		where = f"userrates.userid = {logged_in_as}"
+		sort_column = "userrates.rating DESC, movie.title ASC"
+		where = f"userrates.userid = {users_id}"
 		group_by = "userrates.rating, movie.title"
 	elif option == 2:
 		columns = "COUNT(DISTINCT userwatches.watchdate) as watches, movie.title"
 		join_data = "LEFT JOIN userwatches ON userwatches.movieid = movie.movieid LEFT JOIN \"user\" ON userwatches.userid = \"user\".userid"
-		where = f"userwatches.userid = {logged_in_as}"
-		sort_column = "watches, movie.title"
+		where = f"userwatches.userid = {users_id}"
+		sort_column = "watches DESC, movie.title ASC"
 		group_by = "movie.title"
 	else:
 		columns = "movie.title, COALESCE(AVG(userrates.rating), 0) AS avg_rating, COUNT(DISTINCT userwatches.watchdate) AS watches"
-		join_data = f"LEFT JOIN userrates ON userrates.movieid = movie.movieid AND userrates.userid = {logged_in_as} LEFT JOIN userwatches ON userwatches.movieid = movie.movieid AND userwatches.userid = {logged_in_as}"
+		join_data = f"LEFT JOIN userrates ON userrates.movieid = movie.movieid AND userrates.userid = {users_id} LEFT JOIN userwatches ON userwatches.movieid = movie.movieid AND userwatches.userid = {users_id}"
 		group_by = "movie.title"
-		sort_column = "watches, avg_rating"
-		where = f"userwatches.userid = {logged_in_as}"
+		sort_column = "watches DESC, avg_rating DESC"
+		where = f"userwatches.userid = {users_id}"
 
 	top_ten = GET(table="movie",
 				  col=columns,
 				  join=join_data,
 				  criteria=where,
-				  sort_col=f"{sort_column} DESC",
+				  sort_col=f"{sort_column}",
 				  group_by=group_by,
 				  limit=10)
 
 	if option == 1:
-		if len(top_ten) < 10:
-			print(yellow.apply(f"\tYou have only rated {len(top_ten)} movies."))
+		if len(top_ten) == 0:
+			print(yellow.apply(f"\t{username} not rated any movies."))
+		elif len(top_ten) < 10:
+			print(yellow.apply(f"\t{username} only rated {len(top_ten)} movies."))
 		for movie in top_ten:
 			print(green.apply(f"\t{movie[0]} STARS: {movie[1]}"))
 	elif option == 2:
@@ -921,7 +926,7 @@ def help_message():
 def main():
 	load_dotenv()
 
-	global conn, curs
+	global conn, curs, logged_in_as, logged_in
 	try:
 		username = os.getenv("DB_USERNAME")
 		password, censored = os.getenv("DB_PASSWORD"), '*' * len(os.getenv("DB_PASSWORD"))
@@ -963,7 +968,10 @@ def main():
 					elif command == 'LOGOUT':
 						logout()
 					elif command == 'PROFILE':
-						profile()
+						if not logged_in:
+							print(red.apply("\tYou must be signed in to view your profile."))
+							continue
+						profile(logged_in_as)
 					elif command == 'CREATE COLLECTION':
 						create_collection()
 					elif command == 'SEARCH MOVIES' or command == 'SM':
