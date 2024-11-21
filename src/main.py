@@ -12,7 +12,6 @@ Author: Travis Brown (tmb5932@rit.edu)
 from datetime import datetime, timedelta
 
 import psycopg2
-from matplotlib.table import table
 from sshtunnel import SSHTunnelForwarder
 
 from utils import *
@@ -24,14 +23,14 @@ logged_in_as = None # global userid instance
 def clear_screen():
 	print("\n" * 100)
 
-# SELECT {col} FROM {table} JOIN {join} WHERE {criteria} GROUP BY {group_by} ORDER BY {sort_col} {sort_by} LIMIT {limit}
-def GET(table, col, criteria=None, limit=None, join=None, sort_col=None, group_by=None):
+# SELECT {col} FROM {table} JOIN {join} WHERE {criteria} GROUP BY {group_by} HAVING {having} ORDER BY {sort_col} LIMIT {limit}
+def GET(table, col, criteria=None, limit=None, join=None, sort_col=None, group_by=None, having=None):
 	try:
 		query = f"SELECT {col} FROM \"{table}\""
 		if join: query += f" {join}"
 		if criteria: query += f" WHERE {criteria}"
 		if group_by: query += f" GROUP BY {group_by}"
-		# Apply sort direction to each column in sort_col
+		if having: query += f" HAVING {having}"
 		if sort_col: query += f" ORDER BY {sort_col}"
 		if limit: query += f" LIMIT {limit}"
 		curs.execute(query)
@@ -336,13 +335,13 @@ def search_movies():
 	global logged_in_as
 
 	columns = ("movie.title, productionteam.firstname, productionteam.lastname, movie.runtime, movie.mpaa, "
-			   "avg(userrates.rating) AS avg_rating, moviereleases.releasedate, movie.movieid")
+			   "avg(userrates.rating) AS avg_rating, moviereleases.releasedate, movie.movieid, COUNT(userwatches.userid) AS watch_count")
 
 	table = "movie"
 	join = """JOIN userrates on userrates.movieid = movie.movieid JOIN moviereleases ON movie.movieid = moviereleases.movieid JOIN 
 	moviedirects ON moviedirects.movieid = movie.movieid JOIN productionteam ON moviedirects.productionid = productionteam.productionid 
 	JOIN moviegenre ON movie.movieid = moviegenre.movieid JOIN genre ON moviegenre.genreid = genre.genreid JOIN movieproduces 
-	ON movie.movieid = movieproduces.movieid JOIN studio ON movieproduces.studioid = studio.studioid"""
+	ON movie.movieid = movieproduces.movieid JOIN studio ON movieproduces.studioid = studio.studioid JOIN userwatches ON movie.movieid = userwatches.movieid"""
 	criteria = ""
 	group_by = ("movie.title, productionteam.firstname, productionteam.lastname, movie.runtime, movie.mpaa, "
 				"moviereleases.releasedate, movie.movieid")
@@ -398,20 +397,20 @@ def search_movies():
 	sort_by = sorting_by.upper()
 
 	if sorting == '2':
-		sort_col = "studio.name, movie.title"
+		sort_col = f"studio.name {sort_by}, movie.title {sort_by}, watch_count {sort_by}"
 		group_by += ", studio.name"
 	elif sorting == '3':
-		sort_col = "genre.name, movie.title"
+		sort_col = f"genre.name {sort_by}, movie.title {sort_by}, watch_count {sort_by}"
 		group_by += ", genre.name"
 	elif sorting == '4':
-		sort_col = "moviereleases.releasedate, movie.title"
+		sort_col = f"moviereleases.releasedate {sort_by}, movie.title {sort_by}, watch_count {sort_by}"
 	elif sorting == '5':
-		sort_col = "avg_rating, movie.title"
+		sort_col = f"avg_rating {sort_by}, watch_count {sort_by}, movie.title {sort_by}"
 	else:
-		sort_col = "movie.title, moviereleases.releasedate"
+		sort_col = f"movie.title {sort_by}, moviereleases.releasedate {sort_by}, watch_count DESC"
 
 	result = GET(table=table, join=join, col=columns,
-				 criteria=criteria, group_by=group_by, sort_col=f"{sort_col} {sort_by}", limit=25)
+				 criteria=criteria, group_by=group_by, sort_col=sort_col, limit=25)
 	if result:
 		print(blue.apply(f"\tShowing up to 25 movies"))
 		print(green.apply("\tTITLE, CAST MEMBERS, DIRECTOR, RUNTIME, MPAA, AVG USER RATING, RELEASE DATE"))
@@ -426,7 +425,7 @@ def search_movies():
 		cast = GET(table='productionteam', col="productionteam.firstname, productionteam.lastname", join="JOIN movieactsin ON productionteam.productionid = movieactsin.productionid", criteria=f'movieactsin.movieid = {res[7]}')
 		actors_str = ", ".join([f"{first} {last}" for first, last in cast])
 
-		print(green.apply(f"\t{res[0]}, [{actors_str}], {res[1]} {res[2]}, {res[3]} MIN, {res[4]}, {res[5]} STARS, {res[6]}"))
+		print(green.apply(f"\t{res[0]}, [{actors_str}], {res[1]} {res[2]}, {res[3]} MIN, {res[4]}, {res[5]} STARS, {res[8]} WATCHES, {res[6]}"))
 
 # Add a movie to an existing collection (your own)
 def add_to_collection():
