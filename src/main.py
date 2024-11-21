@@ -955,60 +955,143 @@ def top_five_new():
 			print(green.apply(f"     TOP 5 NEW RELEASES FOR {MONTHS[month]}, {year}"))
 			print(green.apply("---------------------------------------------------"))
 			for movie, _, count in result:
-				print(green.apply(f"\t{count} watches:\t{movie}"))
-			print()
+				print(green.apply(f"\t{count} watches: {movie}"))
+			if len(result) < 5:
+				print(yellow.apply(f"\tOnly {len(result)} movies released this month."))
 		else:
-			print(red.apply("\tNo movies found this month."))
+			print(red.apply(f"\tNo movies released in {MONTHS[month]}, {year}."))
 	except Exception as e:
 		print(red.apply(f"\tOperation failed. {e}"))
 
 # recommend movies based on play history and users with similar data
-def recommendation_system():
-	# user must be signed in for checking similar users and history
+def play_history_recommend():
 	global logged_in, logged_in_as
 	if not logged_in:
 		print(red.apply("\tYou must be signed in to get personalized recommendations."))
 		return
 
 	try:
-		# get watch history
-		user_watched_movies = GET("userwatches", col="DISTINCT movieid", criteria=f"userid = {logged_in_as}")
-		if not user_watched_movies:
-			print(red.apply("\tYou haven't watched a movie."))
-			return
-		movie_ids = ','.join([str(row[0]) for row in user_watched_movies])
-		
-		# get users who have watched those movies
-		table1 = 'userwatches'
-		col1   = 'DISTINCT userid'
-		crit1  = f"movieid IN ({movie_ids}) AND userid != {logged_in_as}"
-		similar = GET(table1, col=col1, criteria=crit1)
-		if not similar:
-			print(red.apply("\tNo similar users found."))
-			return
+		print(blue.apply("\tAnalyzing your play history and preferences..."))
 
-		similar_user_ids = ','.join([str(row[0]) for row in similar])
+		# Get the user's genres and ratings
+		user_genres_query = GET(
+			table="userwatches",
+			col="genre.name AS genre, genre.genreid, AVG(userrates.rating) AS avg_genre_rating, COUNT(userwatches.movieid) AS watch_count",
+			join=("JOIN movie ON userwatches.movieid = movie.movieid "
+				  "JOIN moviegenre ON movie.movieid = moviegenre.movieid "
+				  "JOIN genre ON moviegenre.genreid = genre.genreid "
+				  "LEFT JOIN userrates ON movie.movieid = userrates.movieid"),
+			criteria=f"userwatches.userid = {logged_in_as}",
+			group_by="genre.name, genre.genreid",
+			sort_col="watch_count DESC, avg_genre_rating DESC"
+		)
 
-		# retrieve OTHER movies from those users
-		table2 = "movie"
-		col2   = "movie.title, COUNT(*) as watch_count"
-		join   = "JOIN userwatches ON movie.movieid = userwatches.movieid"
-		crit2  = f"userwatches.userid IN ({similar_user_ids}) AND movie.movieid NOT IN ({movie_ids})"
-		group_by = "movie.title"
-		sort_col = "watch_count DESC"
-		result = GET(table=table2, col=col2, join=join, criteria=crit2, group_by=group_by, sort_col=sort_col, limit=10)
+		# Get user preferences from the query
+		user_genres = [(row[0], row[1], row[2], row[3]) for row in user_genres_query]  # [(genre, genreid, avg_rating, watch_count)]
+		preferred_genres = [row[0] for row in user_genres]
+		preferred_genre_ids = [row[1] for row in user_genres]
+		preferred_genres_id_sql = ', '.join(map(str, preferred_genre_ids))  # Convert IDs for SQL comparison
 
-		print(green.apply("    MOVIES RECOMMENDED FOR YOU BASED ON YOUR WATCH HISTORY"))
-		print(green.apply("--------------------------------------------------------------"))
-		# rank highest views from that list and return MAX 10
-		if result:
-			for movie, count in result:
-				print(green.apply(f"\t{count} users also watched:\t{movie}"))
+		# if no previous watch history
+		if not preferred_genres_id_sql:
+			similar_users = []
+			print(yellow.apply("\tNo play history found. Returning popular movie recommendations..."))
+			recommendations = GET(
+				table="movie",
+				col=("DISTINCT movie.title, genre.name AS genre, movie.runtime, "
+					 "COALESCE(avg(userrates.rating), 0) AS avg_rating, "
+					 "COUNT(userwatches.watchdate) AS watch_count"),
+				join=("JOIN moviegenre ON movie.movieid = moviegenre.movieid "
+					  "JOIN genre ON moviegenre.genreid = genre.genreid "
+					  "LEFT JOIN userrates ON movie.movieid = userrates.movieid "
+					  "LEFT JOIN userwatches ON movie.movieid = userwatches.movieid"),
+				criteria=f"movie.movieid NOT IN (SELECT movieid FROM userwatches WHERE userid = {logged_in_as})",
+				group_by="movie.title, genre.name, movie.runtime",
+				sort_col="avg_rating DESC, watch_count DESC",
+				limit=10
+			)
 		else:
-			print(red.apply("\tNo movie recommendations found based on similar users."))
-		print()
+			# Find similar users
+			similar_users_query = GET(
+				table="userwatches",
+				col=("userwatches.userid, "
+					 f"AVG(CASE WHEN mg.genreid IN ({preferred_genres_id_sql}) THEN ur.rating END) AS avg_genre_similarity"),
+				join=("JOIN movie m ON userwatches.movieid = m.movieid "
+					  "JOIN moviegenre mg ON m.movieid = mg.movieid "
+					  "LEFT JOIN userrates ur ON m.movieid = ur.movieid"),
+				criteria=f"userwatches.userid != {logged_in_as}",
+				group_by="userwatches.userid",
+				having=f"AVG(CASE WHEN mg.genreid IN ({preferred_genres_id_sql}) THEN ur.rating END) IS NOT NULL",
+				sort_col="avg_genre_similarity DESC",
+				limit=10
+			)
+			similar_users = [row[0] for row in similar_users_query]
+
+			preferred_genres_sql = ', '.join(f"'{genre}'" for genre in preferred_genres)
+			# Recommend movies
+			recommendations = GET(
+				table="movie",
+				col=("DISTINCT movie.title, genre.name AS genre, movie.runtime, "
+					 "COALESCE(avg(userrates.rating), 0) AS avg_rating, "
+					 "COUNT(userwatches.watchdate) AS watch_count"),
+				join=("JOIN moviegenre ON movie.movieid = moviegenre.movieid "
+					  "JOIN genre ON moviegenre.genreid = genre.genreid "
+					  "LEFT JOIN userrates ON movie.movieid = userrates.movieid "
+					  "LEFT JOIN userwatches ON movie.movieid = userwatches.movieid"),
+				criteria=(
+					f"movie.movieid NOT IN (SELECT movieid FROM userwatches WHERE userid = {logged_in_as}) "
+					f"AND (genre.name IN ({preferred_genres_sql}) "
+					f"OR movie.movieid IN (SELECT movieid FROM userrates WHERE userid IN ({', '.join(map(str, similar_users))}))) "
+				),
+				having="COALESCE(avg(userrates.rating), 0) = 0 OR COALESCE(avg(userrates.rating), 0) > 2.5",
+				group_by="movie.title, genre.name, movie.runtime",
+				sort_col="avg_rating DESC, watch_count DESC",
+				limit=10
+			)
+
+		# Print recommendations
+		print(yellow.apply("\tUser recommendations found based on similar users."))
+		print(green.apply("\t              MOVIE RECOMMENDATIONS"))
+		print(green.apply("\t------------------------------------------------------"))
+
+		for title, genre, runtime, avg_rating, watch_count in recommendations:
+			avg_rating_display = f"Avg Rating: {round(avg_rating, 1)}" if avg_rating else "No Ratings"
+			print(green.apply(f"\t{watch_count} users also watched: {title} ({genre}, {runtime} mins) - {avg_rating_display}"))
+
+		if not similar_users:
+			print(yellow.apply("\tFor personalized recommendations, try watching and rating more movies!"))
+
 	except Exception as e:
-		print(red.apply(f"\tOperation failed. {e}"))
+		print(red.apply(f"\tFailed to generate recommendations: {e}"))
+
+def watch_history():
+	global logged_in, logged_in_as
+	if not logged_in:
+		print(red.apply("\tYou must be signed in to see your watch history."))
+		return
+
+	while True:
+		lim_input = (input(blue.apply("\tEnter amount of watched movies to view, or enter 'N' for all movies: "))).strip()
+		if lim_input.isdigit() or lim_input in ['N', 'n']:
+			break
+		else:
+			print(red.apply("\tInvalid input. Please enter a number or 'N'."))
+
+	if lim_input in ['N', 'n']:
+		lim = None
+	else:
+		lim = int(lim_input)
+
+	history = GET(table="movie", col="movie.title, to_char(userwatches.watchdate, 'YYYY-MM-DD HH24:MI:SS')", join="JOIN userwatches ON movie.movieid = userwatches.movieid", criteria=f"userwatches.userid = {logged_in_as}", sort_col="userwatches.watchdate DESC", limit=lim)
+
+	if not history:
+		print(yellow.apply("\tYou have not watched any movies..."))
+		return
+	else:
+		print(green.apply("                       WATCH HISTORY"))
+		print(green.apply("-------------------------------------------------------------"))
+		for row in history:
+			print(green.apply(f"\t{row[1]}: {row[0]}"))
 
 # recommendation system
 def recommend():
@@ -1022,7 +1105,7 @@ def recommend():
 		elif input_chars == "3":
 			top_five_new()
 		elif input_chars == "4":
-			recommendation_system()
+			play_history_recommend()
 		elif input_chars == "5":
 			return
 		else:
@@ -1050,6 +1133,7 @@ def help_message():
 	print(blue.apply("SEARCH USERS             search users by email"))
 	print(blue.apply("RATE MOVIE               applies a rating to a movie"))
 	print(blue.apply("WATCH                    watch a movie or all movies in a collection"))
+	print(blue.apply("WATCH HISTORY            view your previously watched movies"))
 	print(blue.apply("RECOMMEND                see recommended movies"))
 	print(blue.apply("CLEAR                	   clears the screen"))
 	print(blue.apply("QUIT/EXIT                quit the program"))
@@ -1132,6 +1216,8 @@ def main():
 						watch()
 					elif command == "RECOMMEND":
 						recommend()
+					elif command == "WATCH HISTORY":
+						watch_history()
 					elif command == "CLEAR":
 						clear_screen()
 					elif command == 'QUIT' or command == 'EXIT':
