@@ -877,6 +877,32 @@ def mostpopular_90days():
 	except Exception as e:
 		print(red.apply(f"\tOperation failed. {e}"))
 
+# 20 most popular movies among only my followers
+def mostpopular_amongfollowers():
+	# user must be signed in for this operation
+	global logged_in, logged_in_as
+	if not logged_in:
+		print(red.apply("\tYou must be signed in to view this recommendation."))
+		return
+
+	try:
+		# request all followers of user
+		followed_users = GET("userfollows", col="followedid", criteria=f"followerid = {logged_in_as}")
+
+		# user must have follows
+		if not followed_users:
+			print(red.apply("\tYou must have friends in order to print the most popular movies among followers."))
+			return
+
+		followed_ids = ','.join([str(row[0]) for row in followed_users])
+
+		# get movies watched by each of the follower ids
+		columns = "movie.title, COUNT(userwatches.movieids) as popularity_count"
+		table = "movie"
+		# TODO: add join
+	except Exception as e:
+		print(red.apply(f"\tOperation failed. {e}"))
+
 # Recommendation system
 def recommend():
 	while True:
