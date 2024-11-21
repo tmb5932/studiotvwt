@@ -967,15 +967,42 @@ def recommendation_system():
 		return
 
 	try:
-		#TODO: Finish recommendation system
 		# get watch history
+		user_watched_movies = GET("userwatches", col="DISTINCT movieid", criteria=f"userid = {logged_in_as}")
+		if not user_watched_movies:
+			print(red.apply("\tYou haven't watched a movie."))
+			return
+		movie_ids = ','.join([str(row[0]) for row in user_watched_movies])
 		
 		# get users who have watched those movies
+		table1 = 'userwatches'
+		col1   = 'DISTINCT userid'
+		crit1  = f"movieid IN ({movie_ids_str}) AND userid != {logged_in_as}"
+		similar = GET(table1, col=col1, criteria=crit1)
+		if not similar:
+			print(red.apply("\tNo similar users found."))
+			return
+
+		similar_user_ids = ','.join([str(row[0]) for row in similar])
 
 		# retrieve OTHER movies from those users
+		table2 = "movie"
+		col2   = "movie.title, COUNT(*) as watch_count"
+		join   = "JOIN userwatches ON movie.movieid = userwatches.movieid"
+		crit2  = f"userwatches.userid IN ({similar_user_ids}) AND movie.movieid NOT IN ({movie_ids})"
+		group_by = "movie.title"
+		sort_col = "watch_count DESC"
+		result = GET(table=table2, col=col2, join=join, criteria=crit2, group_by=group_by, sort_col=sort_col, limit=10)
 
+		print(green.apply("    MOVIES RECOMMENDED FOR YOU BASED ON YOUR WATCH HISTORY"))
+		print(green.apply("--------------------------------------------------------------"))
 		# rank highest views from that list and return MAX 10
-		pass
+		if result:
+			for movie, count in result:
+				print(green.apply(f"\t{count} users also watched:\t{movie}"))
+		else:
+			print(red.apply("\tNo movie recommendations found based on similar users."))
+		print()
 	except Exception as e:
 		print(red.apply(f"\tOperation failed. {e}"))
 
