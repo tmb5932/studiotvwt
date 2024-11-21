@@ -19,18 +19,20 @@ def read_movie_ids(curs):
 
 def insert_user_ratings(curs, user_ids, movie_ids):
     for user_id in user_ids:
-
-        movie_id = random.choice(movie_ids)
-        rating = random.randint(1, 5)
-
-        curs.execute("INSERT INTO userrates (userid, movieid, rating) VALUES (%s, %s, %s)",
-                     (user_id, movie_id, rating))
+        for n in range(0, 10):
+            movie_id = random.choice(movie_ids)
+            rating = random.randint(1, 5)
+            curs.execute("SELECT userid FROM \"userrates\" WHERE userid = %s and movieid = %s", (user_id, movie_id))
+            if curs.fetchone():
+                continue
+            curs.execute("INSERT INTO userrates (userid, movieid, rating) VALUES (%s, %s, %s)",
+                         (user_id, movie_id, rating))
 
 
 def ssh_insert_user_ratings():
     try:
         load_dotenv()
-        username = os.getenv("DB_USER")
+        username = os.getenv("DB_USERNAME")
         password = os.getenv("DB_PASSWORD")
         dbName = "p320_11"
 
@@ -40,6 +42,7 @@ def ssh_insert_user_ratings():
                                 remote_bind_address=('127.0.0.1', 5432)) as server:
             server.start()
             print("SSH tunnel established")
+
             params = {
                 'database': dbName,
                 'user': username,
@@ -50,7 +53,6 @@ def ssh_insert_user_ratings():
             conn = psycopg2.connect(**params)
             curs = conn.cursor()
             print("Database connection established")
-
 
             user_ids = read_user_ids(curs)
             movie_ids = read_movie_ids(curs)
