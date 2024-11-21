@@ -16,10 +16,27 @@ from sshtunnel import SSHTunnelForwarder
 
 from utils import *
 
+# month constants for verbose ouput
+MONTHS = {
+	1: "January",
+	2: "February",
+	3: "March",
+	4: "April",
+	5: "May",
+	6: "June",
+	7: "July",
+	8: "August",
+	9: "September",
+	10: "October",
+	11: "November",
+	12: "December"
+}
+
 conn, curs = None, None  # global db instance
 logged_in = False # global login instance
 logged_in_as = None # global userid instance
 
+# clear screen, works for pycharm terminal
 def clear_screen():
 	print("\n" * 100)
 
@@ -897,13 +914,72 @@ def mostpopular_amongfollowers():
 		followed_ids = ','.join([str(row[0]) for row in followed_users])
 
 		# get movies watched by each of the follower ids
-		columns = "movie.title, COUNT(userwatches.movieids) as popularity_count"
+		columns = "movie.title, COUNT(userwatches.movieid) as popularity"
 		table = "movie"
-		# TODO: add join
+		join = f"JOIN userwatches ON movie.movieid = userwatches.movieid"
+		criteria = f"userwatches.userid IN ({followed_ids})"
+		group_by = "movie.title"
+		sort_col = "popularity DESC"
+		result = GET(table=table, col=columns, join=join, criteria=criteria, group_by=group_by, sort_col=sort_col, limit=20)
+		if result:
+			print(green.apply("       TOP 20 MOST POPULAR MOVIES AMONG FOLLOWED"))
+			print(green.apply("---------------------------------------------------------"))
+			for movie, count in result:
+				print(green.apply(f"\t{count} views:\t{movie}"))
+			print()
+		else:
+			print(red.apply("\tNo movies found among your followed. Try adding a friend."))
+		
 	except Exception as e:
 		print(red.apply(f"\tOperation failed. {e}"))
 
-# Recommendation system
+# top 5 new releases of the calendar month
+def top_five_new():
+	# curr month/year and count
+	year, month, limit = datetime.now().year, datetime.now().month, 5
+
+	try:
+		columns = "movie.title, moviereleases.releasedate, COUNT(userwatches.movieid) as view_count"
+		table = "movie"
+		join = "JOIN moviereleases ON movie.movieid = moviereleases.movieid LEFT JOIN userwatches ON movie.movieid = userwatches.movieid"
+		criteria = f"EXTRACT(YEAR FROM moviereleases.releasedate) = {year} AND EXTRACT(MONTH FROM moviereleases.releasedate) = {month}"
+		group_by = "movie.title, moviereleases.releasedate"
+		sort_col = "view_count DESC, moviereleases.releasedate DESC"
+		result = GET(table=table, col=columns, join=join, criteria=criteria, group_by=group_by, sort_col=sort_col, limit=limit)
+
+		if result:
+			print(green.apply(f"     TOP 5 NEW RELEASES FOR {MONTHS[month]}, {year}"))
+			print(green.apply("---------------------------------------------------"))
+			for movie, _, count in result:
+				print(green.apply(f"\t{count} watches:\t{movie}"))
+			print()
+		else:
+			print(red.apply("\tNo movies found this month."))
+	except Exception as e:
+		print(red.apply(f"\tOperation failed. {e}"))
+
+# recommend movies based on play history and users with similar data
+def recommendation_system():
+	# user must be signed in for checking similar users and history
+	global logged_in, logged_in_as
+	if not logged_in:
+		print(red.apply("\tYou must be signed in to get personalized recommendations."))
+		return
+
+	try:
+		#TODO: Finish recommendation system
+		# get watch history
+		
+		# get users who have watched those movies
+
+		# retrieve OTHER movies from those users
+
+		# rank highest views from that list and return MAX 10
+		pass
+	except Exception as e:
+		print(red.apply(f"\tOperation failed. {e}"))
+
+# recommendation system
 def recommend():
 	while True:
 		input_chars = (input(blue.apply("\tEnter a digit corresponding to the information you would like to see:\n\t1) the top 20 most popular movies in the last 90 days (rolling)\n\t2) the top 20 most popular movies among my followers\n\t3) the top 5 new releases of the month (calendar month)\n\t4) for you: recommend movies to watch based on your play history and the play history of similar users\n\t5) QUIT/EXIT  go back to the main program\n") + "\t> ")).strip()
@@ -911,11 +987,11 @@ def recommend():
 		if input_chars == "1":
 			mostpopular_90days()
 		elif input_chars == "2":
-			pass
+			mostpopular_amongfollowers()
 		elif input_chars == "3":
-			pass
+			top_five_new()
 		elif input_chars == "4":
-			pass
+			recommendation_system()
 		elif input_chars == "5":
 			return
 		else:
