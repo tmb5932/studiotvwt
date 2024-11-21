@@ -221,6 +221,7 @@ def rename_collection():
 		return
 
 	collection_exists = []
+	collection_name = ''
 	while not collection_exists:
 		collection_name = input(blue.apply("\tEnter the Collection Name to Edit: "))
 		collection_exists = GET("collection", col="name", criteria=f"name = '{collection_name}' and userid = '{logged_in_as}'")
@@ -245,6 +246,7 @@ def delete_collection():
 		return
 
 	collection = []
+	collection_name = ''
 	while not collection:
 		collection_name = input(blue.apply("\tEnter Collection name to delete (or quit(q)): "))
 		if collection_name == 'q':
@@ -287,6 +289,7 @@ def view_collection():
 		userid = name_exists[0][0]
 
 	collection_exists = []
+	collection = ''
 	while not collection_exists:
 		collection = input(blue.apply("\tEnter the Collection's Name (or quit(q)): "))
 		if collection == 'q' or collection == 'Q':
@@ -437,6 +440,7 @@ def add_to_collection():
 		return
 
 	coll_exists = []
+	collection = ''
 	while not coll_exists:
 		collection = input(blue.apply("\tEnter full name of Collection to add the movie to (or quit(q)): "))
 		if collection == 'q':
@@ -474,6 +478,7 @@ def remove_from_collection():
 		return
 
 	collection_exists = []
+	collection = ''
 	while not collection_exists:
 		collection = input(blue.apply("\tEnter the Collection Name to Remove From (or quit(q)): "))
 		if collection == 'q':
@@ -483,6 +488,7 @@ def remove_from_collection():
 			print(red.apply(f"\tYou have no collection with name {collection}!"))
 
 	movie_exists = []
+	movie = ''
 	while not movie_exists:
 		movie = input(blue.apply("\tEnter full name of movie to remove (or quit(q)): "))
 		if movie == 'q':
@@ -552,13 +558,14 @@ def unfollow():
 				print(f"User {followed_email} does not exist.")
 				continue
 
+			followedid = followed_user[0][0]
+
 			is_following = GET("userfollows", col="followerid, followedid",
 									criteria=f"followerid = {logged_in_as} AND followedid = {followedid}")
 			if not is_following:
 				print(red.apply(f"\tNot following {followed_email}."))
 				return
 
-			followedid = followed_user[0][0]
 			DELETE("userfollows", criteria=f"followerid = {logged_in_as} and followedid = {followedid}")
 			print(green.apply(f"\tUnfollowed {followed_email}."))
 
@@ -653,7 +660,7 @@ def watch():
 
 	watch_date = datetime.now().isoformat(' ', 'microseconds')
 
-	if media_type == "m":
+	if media_type.upper() == "M":
 		while True:
 			media_name = input(blue.apply("\tEnter the movie name ('q' to quit): "))
 			if media_name == 'q':
@@ -665,10 +672,15 @@ def watch():
 				print(red.apply("\tMovie not found. Please enter a proper name (check for typos)."))
 				continue
 			else:
-				media_id = media[0][0]
-				break
+				entry = {"movieId": media[0][0], "userId": logged_in_as, "watchDate": watch_date}
+				post_result = POST("userwatches", entry)
+				if post_result:
+					print(green.apply(f"\tMovie marked as watched: {media_name}."))
+				else:
+					print(red.apply("\tFailed to mark movie as watched."))
+				continue
 
-	elif media_type == "c":
+	elif media_type.upper() == "C":
 		own_collection = 'default'
 		while own_collection.upper() not in ['Y', 'N']:
 			own_collection = input(blue.apply("\tWatch one of your collections ('Y'), or someone elses ('N') (or 'q' to quit): "))
@@ -711,20 +723,12 @@ def watch():
 
 				for movie in movies:
 					movie_id = movie[0]
-					# movie_name = GET("movie", col="title", criteria=f"movieId = {movie_id}")
 					entry = {"movieId": movie_id, "userId": logged_in_as, "watchDate": watch_date}
 					POST("userwatches", entry)
 					print(green.apply(f"\tMovie marked as watched: {movie[1]}."))
 
 				print(green.apply(f"\tEntire collection '{media_name}' marked as watched."))
 				return
-
-	entry = {"movieId": media_id, "userId": logged_in_as, "watchDate": watch_date}
-	post_result = POST("userwatches", entry)
-	if post_result:
-		print(green.apply(f"\tMovie marked as watched: {media_name}."))
-	else:
-		print(red.apply("\tFailed to mark movie as watched."))
 
 # Search for users
 def search_user():
@@ -852,7 +856,6 @@ def profile(users_id):
 
 			print(green.apply(f"\t{movie[2]} WATCHES and {stars}: {movie[0]}"))
 
-
 # 20 most popular movies in last 90 days (rolling)
 def mostpopular_90days():
 	# define past 90 days
@@ -917,7 +920,7 @@ def help_message():
 	print(blue.apply("SEARCH USERS             search users by email"))
 	print(blue.apply("RATE MOVIE               applies a rating to a movie"))
 	print(blue.apply("WATCH                    watch a movie or all movies in a collection"))
-	print(blue.apply("RECOMMEND                select from four lists to see recommended movies"))
+	print(blue.apply("RECOMMEND                see recommended movies"))
 	print(blue.apply("CLEAR                	   clears the screen"))
 	print(blue.apply("QUIT/EXIT                quit the program"))
 	print(blue.apply("-----------------------------------------------------------------------------"))
