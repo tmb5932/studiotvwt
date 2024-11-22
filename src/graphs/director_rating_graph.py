@@ -113,7 +113,7 @@ if __name__ == "__main__":
             LEFT JOIN
         userrates ur ON m.movieid = ur.movieid
     WHERE 
-        d.productionid > 999
+        d.type = 'director'
     GROUP BY
         d.lastname, d.firstname
     ORDER BY
