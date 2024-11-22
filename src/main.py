@@ -358,10 +358,15 @@ def search_movies():
 			   "avg(userrates.rating) AS avg_rating, moviereleases.releasedate, movie.movieid, COUNT(userwatches.userid) AS watch_count")
 
 	table = "movie"
-	join = """JOIN userrates on userrates.movieid = movie.movieid JOIN moviereleases ON movie.movieid = moviereleases.movieid JOIN 
-	moviedirects ON moviedirects.movieid = movie.movieid JOIN productionteam ON moviedirects.productionid = productionteam.productionid 
-	JOIN moviegenre ON movie.movieid = moviegenre.movieid JOIN genre ON moviegenre.genreid = genre.genreid JOIN movieproduces 
-	ON movie.movieid = movieproduces.movieid JOIN studio ON movieproduces.studioid = studio.studioid JOIN userwatches ON movie.movieid = userwatches.movieid"""
+	join = """JOIN userrates on userrates.movieid = movie.movieid 
+	JOIN moviereleases ON movie.movieid = moviereleases.movieid 
+	JOIN moviedirects ON moviedirects.movieid = movie.movieid 
+	JOIN productionteam ON moviedirects.productionid = productionteam.productionid 
+	JOIN moviegenre ON movie.movieid = moviegenre.movieid 
+	JOIN genre ON moviegenre.genreid = genre.genreid 
+	JOIN movieproduces ON movie.movieid = movieproduces.movieid 
+	JOIN studio ON movieproduces.studioid = studio.studioid 
+	JOIN userwatches ON movie.movieid = userwatches.movieid"""
 	criteria = ""
 	group_by = ("movie.title, productionteam.firstname, productionteam.lastname, movie.runtime, movie.mpaa, "
 				"moviereleases.releasedate, movie.movieid")
