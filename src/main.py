@@ -4,9 +4,10 @@ main.py
 PDM Group 11: Studio TVWT
 Command line interface to control the Movies database.
 
+Author: Travis Brown (tmb5932@rit.edu)
 Author: Vladislav Usatii (vau3677@g.rit.edu)
 Author: William Walker (wbw1991@g.rit.edu)
-Author: Travis Brown (tmb5932@rit.edu)
+Author: Timothy Sturges (tos3454@rit.edu)
 
 """
 from datetime import datetime, timedelta
@@ -15,22 +16,6 @@ import psycopg2
 from sshtunnel import SSHTunnelForwarder
 
 from utils import *
-
-# month constants for verbose ouput
-MONTHS = {
-	1: "January",
-	2: "February",
-	3: "March",
-	4: "April",
-	5: "May",
-	6: "June",
-	7: "July",
-	8: "August",
-	9: "September",
-	10: "October",
-	11: "November",
-	12: "December"
-}
 
 conn, curs = None, None  # global db instance
 logged_in = False # global login instance
@@ -152,7 +137,6 @@ def login(email_username, password_guess):
 	email_exists = GET("user", col="userid, username, password", criteria=f"email = '{email_username}'")
 	username_exists = GET("user", col="userid, username, password", criteria=f"username = '{email_username}'")
 
-
 	if not email_exists and not username_exists:
 		print(red.apply("The email or username does not exist."))
 		return
@@ -161,10 +145,12 @@ def login(email_username, password_guess):
 		userid, username, password = email_exists[0][0], email_exists[0][1], email_exists[0][2]
 	else:
 		userid, username, password = username_exists[0][0], username_exists[0][1], username_exists[0][2]
-	# check password
+
+	# check password against hash
 	if valid_password(password, password_guess):
 		time = datetime.now()
 		print(green.apply("\tLogging in..."))
+		# Update the last access date
 		updated = UPDATE("user", values=f"lastaccessdate = '{time}'", criteria=f"userid = {userid}")
 		if updated:
 			logged_in = True
@@ -193,6 +179,7 @@ def logout():
 		print(red.apply("\tNot logged in."))
 		return
 
+# Create movie collection
 def create_collection():
 	global logged_in
 	global logged_in_as
@@ -201,12 +188,14 @@ def create_collection():
 		print(red.apply("\tYou must be signed in to create a collection."))
 		return
 
+	# Get and validate collection name
 	collection_name = ""
 	while not collection_name:
 		collection_name = (input(blue.apply("\tEnter the Collection Name: "))).strip()
 		if not collection_name:
 			print(red.apply(f"\tYou must enter a collection name."))
 
+	# Check if name already exists
 	name_exists = GET("collection", col="name", criteria=f"name = '{collection_name}' and userid = '{logged_in_as}'")
 	if name_exists:
 		print(red.apply(f"\tCollection '{collection_name}' already exists."))
@@ -237,6 +226,7 @@ def rename_collection():
 		print(red.apply("\tYou must be signed in to edit a collection's name."))
 		return
 
+	# Retrieve Collection name to be edited, and check existence
 	collection_exists = []
 	collection_name = ''
 	while not collection_exists:
@@ -248,6 +238,7 @@ def rename_collection():
 
 	new_name = input(blue.apply("\tEnter the New Collection Name: "))
 
+	# Update name in database
 	update = UPDATE("collection", values=f"name = '{new_name}'", criteria=f"name = '{collection_name}'")
 	if update:
 		print(green.apply(f"\tUpdated collection name to {new_name}."))
@@ -262,6 +253,7 @@ def delete_collection():
 		print(red.apply("\tYou must be signed in to delete a collection."))
 		return
 
+	# Get collection name and check existence
 	collection = []
 	collection_name = ''
 	while not collection:
@@ -279,6 +271,8 @@ def delete_collection():
 # View a collection (own or another persons)
 def view_collection():
 	self_collections = 'default'
+
+	# Check if viewing own collection, or another persons
 	while self_collections.upper() != 'Y' and self_collections.upper() != 'N':
 		self_collections = input(blue.apply("\tDo you want to see your collections(Y), another users collections(N), or cancel(Q): "))
 		if self_collections.upper() == "Q":
@@ -305,6 +299,7 @@ def view_collection():
 					print(red.apply(f"\tUser '{name}' does not exist."))
 		userid = name_exists[0][0]
 
+	# Get and validate collection name
 	collection_exists = []
 	collection = ''
 	while not collection_exists:
@@ -344,6 +339,7 @@ def list_collections():
 		print(green.apply("\tYou have no collections."))
 		return
 	print(green.apply(f"\tYou have {len(collections)} collection(s)."))
+	# List collections name, number of movies, and runtime
 	for col in collections:
 		hours = col[2] // 60
 		minutes = col[2] % 60
@@ -382,6 +378,7 @@ def search_movies():
 	studio = input(blue.apply("\tEnter the Studio Name: "))
 	genre = input(blue.apply("\tEnter the Genre Name: "))
 
+	# Formulate and combine criteria for SQL WHERE clause
 	if title:
 		criteria += f"title ILIKE '%{title}%' AND "
 	if release_date:
@@ -404,7 +401,7 @@ def search_movies():
 		criteria += f"genre.name ILIKE '%{genre}%' AND "
 	criteria = criteria.rstrip(" AND ") # this removes any hanging AND from the where clause
 
-	# Get input on how to sort
+	# Get input on how to sort results
 	sorting = -1
 	while sorting not in ['1', '2', '3', '4', '5']:
 		sorting = input(blue.apply("Sort by Movie Title(1), Studio(2), Genre(3), Release Year(4) or Average User Rating (5)? "))
@@ -434,6 +431,7 @@ def search_movies():
 	else:
 		sort_col = f"movie.title {sort_by}, moviereleases.releasedate {sort_by}, watch_count DESC"
 
+	# Retrieve results from database
 	result = GET(table=table, join=join, col=columns,
 				 criteria=criteria, group_by=group_by, sort_col=sort_col, limit=25)
 	if result:
@@ -443,6 +441,7 @@ def search_movies():
 		print(green.apply("\tNo results to display!"))
 		return
 
+	# Output results as Title, cast members, director, runtime, MPAA rating, avg user rating, and release date
 	for res in result:
 		res = list(res)
 		res[5] = round(float(res[5]), 2)
@@ -461,6 +460,7 @@ def add_to_collection():
 		print(red.apply("\tYou must be signed in to add to a collection."))
 		return
 
+	# Retrieve and verify existence of collection to add to
 	coll_exists = []
 	collection = ''
 	while not coll_exists:
@@ -471,12 +471,15 @@ def add_to_collection():
 		if not coll_exists:
 			print(red.apply(f"\tYou have no collection with name '{collection}'!"))
 
+	# Keep offering to add movies until the user quits
 	while True:
+		# Get movie name from user
 		movie = input(blue.apply("\tEnter full name of movie to add (or quit(q)): "))
 		if movie.upper() == 'Q':
 			print("Movie addition process ended.")
 			break
 
+		# Check if movie exists
 		movie_exists = GET("movie", col="movieid, title", criteria=f"title = '{movie}'")
 		if not movie_exists:
 			print(red.apply(f"\tNo movie exists with name {movie}!"))
@@ -499,6 +502,7 @@ def remove_from_collection():
 		print(red.apply("\tYou must be signed in to remove from a collection."))
 		return
 
+	# Get collection name and verify existence
 	collection_exists = []
 	collection = ''
 	while not collection_exists:
@@ -509,6 +513,7 @@ def remove_from_collection():
 		if not collection_exists:
 			print(red.apply(f"\tYou have no collection with name {collection}!"))
 
+	# Get movie and verify existence
 	movie_exists = []
 	movie = ''
 	while not movie_exists:
@@ -519,6 +524,7 @@ def remove_from_collection():
 		if not movie_exists:
 			print(red.apply(f"\tNo movie exists with name {movie}!"))
 
+	# remove movie from collection
 	DELETE("collectionstores", criteria=f"collectionid = '{collection_exists[0][1]}' and userid = {logged_in_as} and movieid = {movie_exists[0][0]}")
 	print(green.apply(f"\tRemoved '{movie}' from collection '{collection}'."))
 
@@ -530,12 +536,15 @@ def follow():
 		print(red.apply("\tYou must be signed in to follow another user."))
 		return
 
+	# Keep offering to follow people until user quits
 	while True:
+		# Get email of user to follow
 		followed_email = (input(blue.apply("\tEnter the email of the user to follow (or quit(q)): "))).strip()
 		if followed_email.lower() == 'q':
 			print(blue.apply("\tFollow process canceled."))
 			return
 
+		# Verify user to follow exists
 		followed_user = GET("user", col="userid", criteria=f"email = '{followed_email}'")
 		if not followed_user:
 			print(red.apply(f"\tUser {followed_email} does not exist."))
@@ -549,6 +558,7 @@ def follow():
 			"followerid": logged_in_as,
 			"followedid": followedid
 		}
+		# Check if the user is already following the other user
 		already_following = GET("userfollows", col="followerid, followedid", criteria=f"followerid = {logged_in_as} AND followedid = {followedid}")
 		if not already_following:
 			return_value = POST("userfollows", query)
@@ -569,12 +579,14 @@ def unfollow():
 			print(red.apply("\tYou must be signed in to unfollow a user."))
 			return
 
+		# Keep offering to unfollow users until user quits
 		while True:
 			followed_email = (input("Enter the email of the user to unfollow (or quit(q)): ")).strip()
 			if followed_email.lower() == 'q':
 				print("Unfollow process canceled.")
 				return
 
+			# Check if user exists
 			followed_user = GET("user", col="userid", criteria=f"email = '{followed_email}'")
 			if not followed_user:
 				print(f"User {followed_email} does not exist.")
@@ -582,12 +594,14 @@ def unfollow():
 
 			followedid = followed_user[0][0]
 
+			# Check if user is following other user
 			is_following = GET("userfollows", col="followerid, followedid",
 									criteria=f"followerid = {logged_in_as} AND followedid = {followedid}")
 			if not is_following:
 				print(red.apply(f"\tNot following {followed_email}."))
 				return
 
+			# Remove user from following list
 			DELETE("userfollows", criteria=f"followerid = {logged_in_as} and followedid = {followedid}")
 			print(green.apply(f"\tUnfollowed {followed_email}."))
 
@@ -627,7 +641,7 @@ def userrates():
 			update_flag = True
 			break
 
-		# Loop until a valid rating
+	# Loop until a valid rating
 	while True:
 		rating = 'default'
 		while rating not in ['1', '2', '3', '4', '5']:
@@ -1150,10 +1164,10 @@ def main():
 	global conn, curs, logged_in_as, logged_in
 	try:
 		username = os.getenv("DB_USERNAME")
-		password, censored = os.getenv("DB_PASSWORD"), '*' * len(os.getenv("DB_PASSWORD"))
+		password = os.getenv("DB_PASSWORD")
 		dbName = "p320_11"
 		addr, port = '127.0.0.1', 5432
-		# print(f"Authorization details:\nUsername: {username}\tPassword: {censored}\nDB Name: {dbName}\tAddress: {addr}:{port}")
+
 		print("Application Started!")
 		with SSHTunnelForwarder(('starbug.cs.rit.edu', 22), ssh_username=username, ssh_password=password, remote_bind_address=(addr, port)) as server:
 			server.start()

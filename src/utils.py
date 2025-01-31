@@ -1,5 +1,21 @@
-import sys, os, binascii, hashlib
+import os, hashlib
 from dotenv import load_dotenv
+
+# month constants for verbose output
+MONTHS = {
+	1: "January",
+	2: "February",
+	3: "March",
+	4: "April",
+	5: "May",
+	6: "June",
+	7: "July",
+	8: "August",
+	9: "September",
+	10: "October",
+	11: "November",
+	12: "December"
+}
 
 """ SHA 256 Hash """
 def encode_password(password):
